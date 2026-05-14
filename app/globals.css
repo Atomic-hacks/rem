@@ -1,26 +1,112 @@
+@import url("https://fonts.googleapis.com/css2?family=Jura:wght@300..700&display=swap");
 @import "tailwindcss";
+@config "../tailwind.config.ts";
 
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --brand-primary: #fdb824;
+  --focus-ring: color-mix(in srgb, var(--brand-primary) 70%, #ffffff);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-brand-primary: var(--brand-primary);
+  --color-status-verified: #16a34a;
+  --color-status-verified-foreground: #f0fdf4;
+  --color-status-verified-muted: #dcfce7;
+  --color-status-sold: #dc2626;
+  --color-status-sold-foreground: #fef2f2;
+  --color-status-sold-muted: #fee2e2;
+  --color-status-pending: #d97706;
+  --color-status-pending-foreground: #fffbeb;
+  --color-status-pending-muted: #fef3c7;
+  --color-property-available: #0f766e;
+  --color-property-featured: #7c3aed;
+  --color-property-off-market: #64748b;
+  --font-sans: "Jura", Arial, Helvetica, sans-serif;
+  --font-mono: "Jura", monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: "Jura", Arial, Helvetica, sans-serif;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+    color: inherit;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  input:disabled,
+  textarea:disabled,
+  select:disabled {
+    cursor: not-allowed;
+  }
+
+  img,
+  picture,
+  video,
+  canvas,
+  svg {
+    display: block;
+    max-width: 100%;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--brand-primary);
+    color: #171717;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  .brand-focus {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  .text-brand-primary {
+    color: var(--brand-primary);
+  }
+
+  .bg-brand-primary {
+    background-color: var(--brand-primary);
+  }
+
+  .border-brand-primary {
+    border-color: var(--brand-primary);
+  }
+
+  .gallery-scrollbar {
+    scrollbar-color: var(--brand-primary) transparent;
+    scrollbar-width: thin;
+  }
 }
