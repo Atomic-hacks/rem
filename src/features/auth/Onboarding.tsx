@@ -135,7 +135,7 @@ export default function WelcomePage() {
             <p className="text-center text-[12.5px] text-stone-400 font-light">
               Already have an account?{" "}
               <Link
-                href="/sign-up"
+                href="/sign-in"
                 className="text-amber-500 hover:text-amber-600 font-medium transition-colors"
               >
                 Sign In

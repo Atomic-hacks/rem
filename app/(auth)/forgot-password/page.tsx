@@ -1,4 +1,4 @@
-import { ForgotPasswordPanel } from "@/features/auth/SignUp";
+import { ForgotPasswordPanel } from "@/features/auth/SignIn";
 
 export default function Page() {
   return <ForgotPasswordPanel />;
