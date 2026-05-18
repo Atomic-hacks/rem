@@ -1,7 +1,7 @@
-import Hero from "../home/Hero";
-import FeaturedProperties from "../home/FeaturedProperties";
-import Category from "../home/Categories";
-import ReadyToListYourProperty from "../home/ReadyToListYourProperty";
+import FeaturedProperties from "@/components/home/FeaturedProperties";
+import Hero from "@/components/home/Hero";
+import Category from "@/components/home/Categories";
+import ReadyToListYourProperty from "@/components/home/ReadyToListYourProperty";
 
 const page = () => (
   <div>
