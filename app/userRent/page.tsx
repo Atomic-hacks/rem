@@ -240,7 +240,7 @@ export default function PropertiesPage() {
                     </div>
 
                     {/* ✅ VIEW DETAILS BUTTON WITH LINK */}
-                    <Link href={`/user/${p.id}`}>
+                    <Link href={`/userRent/${p.id}`}>
                       <button className="mt-4 w-full rounded-xl bg-yellow-500 py-2 font-bold text-black hover:bg-yellow-400">
                         View Details
                       </button>
