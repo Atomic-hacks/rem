@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ChangeEvent, KeyboardEvent, ReactNode } from "react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FcGoogle } from "react-icons/fc";
 import {
   FiCheck,
@@ -15,6 +15,16 @@ import {
   FiMail,
   FiPhone,
 } from "react-icons/fi";
+import {
+  ApiError,
+  activateUser,
+  clearPendingActivationEmail,
+  getPendingActivationEmail,
+  registerUser,
+  resendActivation,
+  setPendingActivationEmail,
+  type AgentType,
+} from "@/services/auth";
 
 const panelMotion = {
   initial: { opacity: 0, y: 24 },
@@ -121,11 +131,11 @@ function TermsCheckbox({
       </button>
       <span className="text-stone-500 text-[12.5px] font-light">
         I agree to the{" "}
-        <Link href="#" className="text-amber-500 hover:underline font-medium">
+        <Link href="/terms" className="text-amber-500 hover:underline font-medium">
           Terms
         </Link>{" "}
         and{" "}
-        <Link href="#" className="text-amber-500 hover:underline font-medium">
+        <Link href="/privacy" className="text-amber-500 hover:underline font-medium">
           Privacy Policy
         </Link>
         .
@@ -168,9 +178,11 @@ function PrimaryLink({
 function PrimaryButton({
   children,
   onClick,
+  disabled = false,
 }: {
   children: ReactNode;
   onClick: () => void;
+  disabled?: boolean;
 }) {
   return (
     <motion.button
@@ -178,17 +190,69 @@ function PrimaryButton({
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.97 }}
       onClick={onClick}
-      className="w-full py-3.5 rounded-xl bg-amber-400 hover:bg-amber-500 text-center text-white font-semibold text-sm tracking-wide transition-colors duration-200 shadow-sm cursor-pointer"
+      disabled={disabled}
+      className="w-full py-3.5 rounded-xl bg-amber-400 hover:bg-amber-500 disabled:bg-stone-300 disabled:cursor-not-allowed text-center text-white font-semibold text-sm tracking-wide transition-colors duration-200 shadow-sm cursor-pointer"
     >
       {children}
     </motion.button>
   );
 }
 
+function Feedback({ message, tone }: { message: string; tone: "error" | "success" }) {
+  return (
+    <p
+      className={`rounded-xl border px-4 py-3 text-sm ${
+        tone === "error"
+          ? "border-red-100 bg-red-50 text-red-600"
+          : "border-emerald-100 bg-emerald-50 text-emerald-600"
+      }`}
+    >
+      {message}
+    </p>
+  );
+}
+
+function normalizeNigerianPhone(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+
+  if (phone.trim().startsWith("+")) {
+    return `+${digits}`;
+  }
+
+  if (digits.startsWith("234")) {
+    return `+${digits}`;
+  }
+
+  return `+234${digits.replace(/^0/, "")}`;
+}
+
+function hasEmptyRequiredFields(fields: string[]) {
+  return fields.some((field) => !field.trim());
+}
+
+function getOtpVerificationError(error: unknown) {
+  if (error instanceof ApiError && error.status === 403) {
+    return "This OTP is invalid, expired, or already used. Request a new code and try again.";
+  }
+
+  return error instanceof Error ? error.message : "Unable to verify your account.";
+}
+
+function getOtpResendError(error: unknown) {
+  if (error instanceof ApiError && [400, 401, 403].includes(error.status)) {
+    return "The server rejected the resend request. Go back to sign up and submit the form again to generate a fresh OTP.";
+  }
+
+  return error instanceof Error ? error.message : "Unable to resend activation code.";
+}
+
 export default function SignUpPage() {
   const router = useRouter();
   const [role, setRole] = useState<"buyer" | "agent">("buyer");
+  const [agentType, setAgentType] = useState<AgentType>("Real Estate Agent");
   const [agreed, setAgreed] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState<{ message: string; tone: "error" | "success" } | null>(null);
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -202,9 +266,44 @@ export default function SignUpPage() {
       setForm((current) => ({ ...current, [field]: event.target.value }));
 
   const handleCreateAccount = async () => {
-    const payload = { ...form, role, agreed, channel: "email" };
-    void payload;
-    router.push("/sign-up/verify-email");
+    setFeedback(null);
+
+    if (!agreed) {
+      setFeedback({ message: "Please accept the terms to continue.", tone: "error" });
+      return;
+    }
+
+    if (hasEmptyRequiredFields([form.firstName, form.lastName, form.email, form.password, form.confirm])) {
+      setFeedback({ message: "Please fill in all required fields.", tone: "error" });
+      return;
+    }
+
+    if (form.password !== form.confirm) {
+      setFeedback({ message: "Passwords do not match.", tone: "error" });
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await registerUser({
+        firstName: form.firstName,
+        lastName: form.lastName,
+        authProvider: "email",
+        email: form.email,
+        password: form.password,
+        rePassword: form.confirm,
+        agentType: role === "agent" ? agentType : undefined,
+      });
+      setPendingActivationEmail(form.email);
+      router.push("/sign-up/verify-email");
+    } catch (error) {
+      setFeedback({
+        message: error instanceof Error ? error.message : "Unable to create account.",
+        tone: "error",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -237,6 +336,25 @@ export default function SignUpPage() {
           </button>
         ))}
       </div>
+
+      {role === "agent" ? (
+        <div className="grid grid-cols-2 gap-3">
+          {(["Real Estate Agent", "Property Manager"] as const).map((type) => (
+            <button
+              key={type}
+              type="button"
+              onClick={() => setAgentType(type)}
+              className={`rounded-xl border px-3 py-3 text-sm font-medium transition-colors ${
+                agentType === type
+                  ? "border-amber-400 bg-amber-400 text-white"
+                  : "border-stone-200 bg-white text-stone-500 hover:border-amber-300"
+              }`}
+            >
+              {type}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       <div className="flex gap-3">
         <motion.button
@@ -319,8 +437,9 @@ export default function SignUpPage() {
         agreed={agreed}
         onToggle={() => setAgreed((value) => !value)}
       />
-      <PrimaryButton onClick={handleCreateAccount}>
-        Create Account
+      {feedback ? <Feedback {...feedback} /> : null}
+      <PrimaryButton onClick={handleCreateAccount} disabled={isSubmitting}>
+        {isSubmitting ? "Creating account..." : "Create Account"}
       </PrimaryButton>
 
       <p className="text-center text-[12.5px] text-stone-400 font-light">
@@ -339,13 +458,50 @@ export default function SignUpPage() {
 export function PhoneSignUpPanel() {
   const router = useRouter();
   const [agreed, setAgreed] = useState(true);
-  const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState<{ message: string; tone: "error" | "success" } | null>(null);
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    password: "",
+  });
 
   const handleCreateAccount = async () => {
-    const payload = { phone, password, agreed, channel: "phone" };
-    void payload;
-    router.push("/sign-up/verify-phone");
+    setFeedback(null);
+
+    if (!agreed) {
+      setFeedback({ message: "Please accept the terms to continue.", tone: "error" });
+      return;
+    }
+
+    if (hasEmptyRequiredFields([form.firstName, form.lastName, form.email, form.phone, form.password])) {
+      setFeedback({ message: "Please fill in all required fields.", tone: "error" });
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await registerUser({
+        firstName: form.firstName,
+        lastName: form.lastName,
+        authProvider: "phone",
+        email: form.email,
+        phoneNumber: normalizeNigerianPhone(form.phone),
+        password: form.password,
+        rePassword: form.password,
+      });
+      setPendingActivationEmail(form.email);
+      router.push("/sign-up/verify-phone");
+    } catch (error) {
+      setFeedback({
+        message: error instanceof Error ? error.message : "Unable to create account.",
+        tone: "error",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -382,8 +538,48 @@ export function PhoneSignUpPanel() {
       <Divider label="or with phone" />
 
       <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1.5">
+            <FieldLabel>First name</FieldLabel>
+            <input
+              type="text"
+              value={form.firstName}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, firstName: event.target.value }))
+              }
+              placeholder="John"
+              className="w-full px-4 py-3 rounded-xl border border-stone-300 bg-transparent text-stone-700 text-sm placeholder:text-stone-400 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-all duration-200"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <FieldLabel>Last name</FieldLabel>
+            <input
+              type="text"
+              value={form.lastName}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, lastName: event.target.value }))
+              }
+              placeholder="D. Law"
+              className="w-full px-4 py-3 rounded-xl border border-stone-300 bg-transparent text-stone-700 text-sm placeholder:text-stone-400 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-all duration-200"
+            />
+          </div>
+        </div>
+
         <div className="flex flex-col gap-1.5">
-          <FieldLabel>Phone number (optional)</FieldLabel>
+          <FieldLabel>Email address</FieldLabel>
+          <input
+            type="email"
+            value={form.email}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, email: event.target.value }))
+            }
+            placeholder="you@example.com"
+            className="w-full px-4 py-3 rounded-xl border border-stone-300 bg-transparent text-stone-700 text-sm placeholder:text-stone-400 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-all duration-200"
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <FieldLabel>Phone number</FieldLabel>
           <div className="grid grid-cols-[142px_1fr] gap-3">
             <button
               type="button"
@@ -399,8 +595,10 @@ export function PhoneSignUpPanel() {
             </button>
             <input
               type="tel"
-              value={phone}
-              onChange={(event) => setPhone(event.target.value)}
+              value={form.phone}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, phone: event.target.value }))
+              }
               placeholder="801 234 506"
               className="w-full px-4 py-3 rounded-xl border border-stone-300 bg-transparent text-stone-700 text-sm placeholder:text-stone-400 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-all duration-200"
             />
@@ -409,7 +607,12 @@ export function PhoneSignUpPanel() {
 
         <div className="flex flex-col gap-1.5">
           <FieldLabel>Password</FieldLabel>
-          <PasswordField value={password} onChange={setPassword} />
+          <PasswordField
+            value={form.password}
+            onChange={(value) =>
+              setForm((current) => ({ ...current, password: value }))
+            }
+          />
         </div>
       </div>
 
@@ -417,8 +620,9 @@ export function PhoneSignUpPanel() {
         agreed={agreed}
         onToggle={() => setAgreed((value) => !value)}
       />
-      <PrimaryButton onClick={handleCreateAccount}>
-        Create Account
+      {feedback ? <Feedback {...feedback} /> : null}
+      <PrimaryButton onClick={handleCreateAccount} disabled={isSubmitting}>
+        {isSubmitting ? "Creating account..." : "Create Account"}
       </PrimaryButton>
     </SignUpPanel>
   );
@@ -431,8 +635,15 @@ export function OtpVerificationPanel({
 }) {
   const router = useRouter();
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const [email, setEmail] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState<{ message: string; tone: "error" | "success" } | null>(null);
   const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
   const label = channel === "email" ? "email" : "number";
+
+  useEffect(() => {
+    setEmail(getPendingActivationEmail());
+  }, []);
 
   const handleOtpChange = (index: number, value: string) => {
     const digit = value.replace(/\D/g, "").slice(-1);
@@ -457,19 +668,60 @@ export function OtpVerificationPanel({
   };
 
   const handleVerifyOtp = async () => {
-    const payload = { channel, otp: otp.join("") };
-    void payload;
-    router.push("/sign-up/success");
+    setFeedback(null);
+
+    if (hasEmptyRequiredFields([email, otp.join("")]) || otp.join("").length < 6) {
+      setFeedback({ message: "Enter your email and complete OTP.", tone: "error" });
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await activateUser({ email, token: otp.join("") });
+      clearPendingActivationEmail();
+      router.push("/sign-up/success");
+    } catch (error) {
+      setFeedback({
+        message: getOtpVerificationError(error),
+        tone: "error",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleResendOtp = async () => {
-    const payload = { channel };
-    void payload;
+    setFeedback(null);
+
+    if (!email.trim()) {
+      setFeedback({ message: "Enter your email before resending OTP.", tone: "error" });
+      return;
+    }
+
+    try {
+      await resendActivation(email);
+      setFeedback({ message: "Activation code sent again.", tone: "success" });
+    } catch (error) {
+      setFeedback({
+        message: getOtpResendError(error),
+        tone: "error",
+      });
+    }
   };
 
   return (
     <SignUpPanel title={`Verify your ${label}`} wide>
       <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1.5">
+          <FieldLabel>Email address</FieldLabel>
+          <input
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="you@example.com"
+            className="w-full px-4 py-3 rounded-xl border border-stone-200 bg-white text-stone-700 text-sm placeholder:text-stone-300 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-all duration-200"
+          />
+        </div>
         <FieldLabel>Enter OTP</FieldLabel>
         <div className="grid grid-cols-6 gap-4">
           {otp.map((digit, index) => (
@@ -492,6 +744,11 @@ export function OtpVerificationPanel({
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-14 sm:px-20">
+        {feedback ? (
+          <div className="sm:col-span-2">
+            <Feedback {...feedback} />
+          </div>
+        ) : null}
         <button
           type="button"
           onClick={handleResendOtp}
@@ -502,9 +759,10 @@ export function OtpVerificationPanel({
         <button
           type="button"
           onClick={handleVerifyOtp}
-          className="rounded-lg bg-amber-400 py-2.5 text-center text-xs font-medium text-stone-900 hover:bg-amber-500 transition-colors"
+          disabled={isSubmitting}
+          className="rounded-lg bg-amber-400 py-2.5 text-center text-xs font-medium text-stone-900 hover:bg-amber-500 disabled:bg-stone-300 disabled:cursor-not-allowed transition-colors"
         >
-          Verify
+          {isSubmitting ? "Verifying..." : "Verify"}
         </button>
       </div>
     </SignUpPanel>

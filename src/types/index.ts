@@ -14,3 +14,10 @@ export type {
   PropertyType,
   SearchFilters,
 } from "./real-estate";
+
+export type {
+  FeaturedProperty,
+  ListingAgent,
+  MarketplaceProperty,
+  ShortletProperty,
+} from "./listings";

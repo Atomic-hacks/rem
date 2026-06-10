@@ -1,15 +1,5 @@
-import FeaturedProperties from "@/components/home/FeaturedProperties";
-import Hero from "@/components/home/Hero";
-import Category from "@/components/home/Categories";
-import ReadyToListYourProperty from "@/components/home/ReadyToListYourProperty";
+import { redirect } from "next/navigation";
 
-const page = () => (
-  <div>
-    <Hero />;
-    <FeaturedProperties />;
-    <Category />;
-    <ReadyToListYourProperty />;
-  </div>
-);
+const page = () => redirect("/");
 
 export default page;

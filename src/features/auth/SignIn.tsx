@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { FcGoogle } from "react-icons/fc";
@@ -15,6 +16,12 @@ import {
   FiMail,
   FiPhone,
 } from "react-icons/fi";
+import {
+  getCurrentUser,
+  loginUser,
+  persistAuthSession,
+  persistAuthUser,
+} from "@/services/auth";
 
 const panelMotion = {
   initial: { opacity: 0, x: 24 },
@@ -110,11 +117,11 @@ function TermsCheckbox({
       </button>
       <span className="text-stone-500 text-[12.5px] font-light">
         I agree to the{" "}
-        <Link href="#" className="text-amber-500 hover:underline font-medium">
+        <Link href="/terms" className="text-amber-500 hover:underline font-medium">
           Terms
         </Link>{" "}
         and{" "}
-        <Link href="#" className="text-amber-500 hover:underline font-medium">
+        <Link href="/privacy" className="text-amber-500 hover:underline font-medium">
           Privacy Policy
         </Link>
         .
@@ -142,6 +149,37 @@ function PrimaryLink({
   );
 }
 
+function PrimaryButton({
+  children,
+  onClick,
+  disabled = false,
+}: {
+  children: ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <motion.button
+      type="button"
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.97 }}
+      onClick={onClick}
+      disabled={disabled}
+      className="w-full py-3.5 rounded-xl bg-amber-400 hover:bg-amber-500 disabled:bg-stone-300 disabled:cursor-not-allowed text-white text-center font-semibold text-sm tracking-wide transition-colors duration-200 shadow-sm"
+    >
+      {children}
+    </motion.button>
+  );
+}
+
+function Feedback({ message }: { message: string }) {
+  return (
+    <p className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
+      {message}
+    </p>
+  );
+}
+
 function Divider({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-3">
@@ -155,10 +193,53 @@ function Divider({ label }: { label: string }) {
 }
 
 export default function SignInPage() {
+  const router = useRouter();
   const [role, setRole] = useState<"buyer" | "agent">("buyer");
   const [agreed, setAgreed] = useState(true);
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState("");
+
+  const handleSignIn = async () => {
+    setFeedback("");
+
+    if (!agreed) {
+      setFeedback("Please accept the terms to continue.");
+      return;
+    }
+
+    if (!identifier.trim() || !password.trim()) {
+      setFeedback("Enter your email or phone number and password.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const tokens = await loginUser({
+        identifier: identifier.trim(),
+        password,
+      });
+      persistAuthSession(tokens);
+
+      try {
+        const user = await getCurrentUser(tokens.access);
+        persistAuthUser(user);
+      } catch {
+        // Token login succeeded; profile hydration can be retried later.
+      }
+
+      router.push("/");
+    } catch (error) {
+      setFeedback(
+        error instanceof Error
+          ? error.message
+          : "Unable to sign in with those credentials.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <AuthPanel
@@ -212,12 +293,12 @@ export default function SignInPage() {
 
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
-          <FieldLabel>Email address</FieldLabel>
+          <FieldLabel>Email address or phone number</FieldLabel>
           <input
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="you@example.com"
+            type="text"
+            value={identifier}
+            onChange={(event) => setIdentifier(event.target.value)}
+            placeholder="you@example.com or +2348012345678"
             className="w-full px-4 py-3 rounded-xl border border-stone-200 bg-white text-stone-700 text-sm placeholder:text-stone-300 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-all duration-200"
           />
         </div>
@@ -238,7 +319,10 @@ export default function SignInPage() {
         </Link>
       </div>
 
-      <PrimaryLink href="/">Sign In</PrimaryLink>
+      {feedback ? <Feedback message={feedback} /> : null}
+      <PrimaryButton onClick={handleSignIn} disabled={isSubmitting}>
+        {isSubmitting ? "Signing in..." : "Sign In"}
+      </PrimaryButton>
 
       <p className="text-center text-[12.5px] text-stone-400 font-light">
         Don&apos;t have an account?{" "}
