@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
+
 export const metadata: Metadata = {
   title: "Real Estate Marketplace Africa",
   description: "Discover properties for sale, rent, and short-let stays across Africa.",
