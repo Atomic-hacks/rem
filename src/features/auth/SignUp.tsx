@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import { motion } from "framer-motion";
@@ -19,12 +20,25 @@ import {
   ApiError,
   activateUser,
   clearPendingActivationEmail,
+  getCurrentUser,
   getPendingActivationEmail,
+  loginUser,
+  persistAgentOnboardingToken,
+  persistAuthSession,
+  persistAuthUser,
   registerUser,
   resendActivation,
   setPendingActivationEmail,
   type AgentType,
 } from "@/services/auth";
+import {
+  clearPendingAuthCredentials,
+  getPendingAuthCredentials,
+  getStoredAuthIntent,
+  persistAuthIntent,
+  persistPendingAuthCredentials,
+  routeForAuthenticatedUser,
+} from "./auth-routing";
 
 const panelMotion = {
   initial: { opacity: 0, y: 24 },
@@ -261,6 +275,15 @@ export default function SignUpPage() {
     confirm: "",
   });
 
+  useEffect(() => {
+    setRole(getStoredAuthIntent());
+  }, []);
+
+  const selectRole = (nextRole: "buyer" | "agent") => {
+    setRole(nextRole);
+    persistAuthIntent(nextRole);
+  };
+
   const handleChange =
     (field: keyof typeof form) => (event: ChangeEvent<HTMLInputElement>) =>
       setForm((current) => ({ ...current, [field]: event.target.value }));
@@ -283,6 +306,41 @@ export default function SignUpPage() {
       return;
     }
 
+    if (role === "agent") {
+      persistAuthIntent("agent");
+
+      try {
+        setIsSubmitting(true);
+        const response = await registerUser({
+          firstName: form.firstName,
+          lastName: form.lastName,
+          authProvider: "email",
+          email: form.email,
+          password: form.password,
+          rePassword: form.confirm,
+          agentType,
+        });
+
+        if (response.onboarding_token) {
+          persistAgentOnboardingToken(response.onboarding_token);
+        }
+
+        setPendingActivationEmail(form.email);
+        persistPendingAuthCredentials(form.email, form.password);
+        router.push("/auth/register/verify-email");
+      } catch (error) {
+        setFeedback({
+          message: error instanceof Error ? error.message : "Unable to create agent account.",
+          tone: "error",
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
+
+      return;
+    }
+
+    // Buyer path — role is narrowed to "buyer" here, so agentType is always undefined.
     try {
       setIsSubmitting(true);
       await registerUser({
@@ -292,10 +350,10 @@ export default function SignUpPage() {
         email: form.email,
         password: form.password,
         rePassword: form.confirm,
-        agentType: role === "agent" ? agentType : undefined,
+        agentType: undefined,
       });
       setPendingActivationEmail(form.email);
-      router.push("/sign-up/verify-email");
+      router.push("/auth/register/verify-email");
     } catch (error) {
       setFeedback({
         message: error instanceof Error ? error.message : "Unable to create account.",
@@ -323,7 +381,7 @@ export default function SignUpPage() {
           <button
             key={item}
             type="button"
-            onClick={() => setRole(item)}
+            onClick={() => selectRole(item)}
             className={`flex-1 px-3 py-3 text-sm font-medium transition-colors duration-200 cursor-pointer ${
               role === item
                 ? "bg-amber-400 text-white"
@@ -367,7 +425,7 @@ export default function SignUpPage() {
           Google
         </motion.button>
         <Link
-          href="/sign-up/phone"
+          href="/auth/register/phone"
           className="flex-1 flex items-center justify-center gap-2.5 py-3 rounded-xl border border-stone-200 bg-white text-stone-600 text-sm font-light hover:border-amber-300 transition-colors duration-200"
         >
           <FiPhone size={16} className="text-amber-500" />
@@ -445,7 +503,7 @@ export default function SignUpPage() {
       <p className="text-center text-[12.5px] text-stone-400 font-light">
         Already have an account?{" "}
         <Link
-          href="/sign-in"
+          href="/auth/login"
           className="text-amber-500 hover:text-amber-600 font-medium transition-colors"
         >
           Sign In
@@ -493,7 +551,7 @@ export function PhoneSignUpPanel() {
         rePassword: form.password,
       });
       setPendingActivationEmail(form.email);
-      router.push("/sign-up/verify-phone");
+      router.push("/auth/register/verify-phone");
     } catch (error) {
       setFeedback({
         message: error instanceof Error ? error.message : "Unable to create account.",
@@ -527,7 +585,7 @@ export function PhoneSignUpPanel() {
           Google
         </motion.button>
         <Link
-          href="/sign-up"
+          href="/auth/register"
           className="flex items-center justify-center gap-3 py-3.5 rounded-xl border border-stone-200 bg-white text-amber-500 text-sm tracking-wide shadow-sm hover:border-amber-300 transition-colors"
         >
           <FiMail size={20} />
@@ -679,7 +737,32 @@ export function OtpVerificationPanel({
       setIsSubmitting(true);
       await activateUser({ email, token: otp.join("") });
       clearPendingActivationEmail();
-      router.push("/sign-up/success");
+
+      if (getStoredAuthIntent() === "agent") {
+        const credentials = getPendingAuthCredentials();
+        if (!credentials) {
+          router.push("/auth/login");
+          return;
+        }
+
+        const tokens = await loginUser({
+          identifier: credentials.email,
+          password: credentials.password,
+        });
+        persistAuthSession(tokens);
+
+        const user = await getCurrentUser(tokens.access);
+        persistAuthUser(user);
+        clearPendingAuthCredentials();
+
+        // We are already in the agent intent branch — route directly to onboarding
+        // rather than re-deriving the destination from user.role, which the backend
+        // may not have assigned yet at this point in the flow.
+        router.push("/agent-Onboarding/proffessionalDetails");
+        return;
+      }
+
+      router.push("/auth/register/success");
     } catch (error) {
       setFeedback({
         message: getOtpVerificationError(error),

@@ -1,40 +1,59 @@
 "use client";
 
+import { clearAuthSession } from "@/services";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
-  LayoutDashboard,
-  MessageSquare,
-  BarChart3,
-  Settings,
-  LogOut,
-} from "lucide-react";
+  LuLayoutDashboard as LayoutDashboard,
+  LuChartBar as BarChart3,
+  LuSettings as Settings,
+  LuLogOut as LogOut,
+  LuHouse as Home,
+  LuInfo as Info,
+  LuBuilding2 as Building,
+} from "react-icons/lu";
 
 const navItems = [
   {
     label: "Dashboard",
     icon: LayoutDashboard,
-    href: "/agent-profile",
+    href: "/agent/dashboard",
   },
   {
-    label: "Messages",
-    icon: MessageSquare,
-    href: "/agent-profile/messages",
+    label: "Listings",
+    icon: Building,
+    href: "/agent/listings",
   },
   {
-    label: "My Listings",
+    label: "Home",
+    icon: Home,
+    href: "/home",
+  },
+  {
+    label: "Analytics",
     icon: BarChart3,
-    href: "/agent-profile/my-Listing",
+    href: "/agent/analytics",
   },
   {
-    label: "Settings",
+    label: "About",
+    icon: Info,
+    href: "/about",
+  },
+  {
+    label: "Profile",
     icon: Settings,
-    href: "/agent-profile/settings",
+    href: "/agent/profile",
   },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const logout = () => {
+    clearAuthSession();
+    router.replace("/auth/login");
+  };
 
   return (
     <aside className="w-[240px] border-r bg-white flex flex-col">
@@ -73,7 +92,11 @@ export default function Sidebar() {
 
       {/* Footer */}
       <div className="p-4 border-t">
-        <button className="w-full h-11 border rounded-lg flex items-center justify-center gap-2 text-sm hover:bg-gray-50">
+        <button
+          type="button"
+          onClick={logout}
+          className="w-full h-11 border rounded-lg flex items-center justify-center gap-2 text-sm hover:bg-gray-50"
+        >
           <LogOut size={16} />
           Logout
         </button>

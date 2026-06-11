@@ -1,5 +1,5 @@
-import MessagesLayout from "@/components/agent-profile/MessagesLayout";
+import AgentDashboard from "@/components/agent-profile/AgentDashboard";
 
 export default function AgentProfilePage() {
-  return <MessagesLayout />;
+  return <AgentDashboard />;
 }

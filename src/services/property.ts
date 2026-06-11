@@ -190,6 +190,8 @@ const emptyHomeData: HomePageData = {
 // Helper function to convert demo data to API format
 function convertDemoToApiProperties(): Property[] {
   const apiProperties: Property[] = [];
+  const now = new Date().toISOString();
+  const demoAgentNames = ["Emeka Okafor", "Adaobi Williams", "Tunde Lawal"];
 
   // Convert featured properties to API format
   demoFeaturedProperties.forEach((prop, index) => {
@@ -234,13 +236,18 @@ function convertDemoToApiProperties(): Property[] {
       images: [],
       agent: {
         id: `demo-agent-${index}`,
-        full_name: "Demo Agent",
+        full_name: demoAgentNames[index % demoAgentNames.length],
         avatar_url: "",
         phone: "+234 800 000 0000",
         email: "agent@demo.com",
+        agent_type: "Real Estate Agent",
+        company_name: "REM Demo Realty",
         verified: true,
+        rating: 4.7,
+        years_of_experience: 5,
+        total_listings: 14,
       },
-      created_at: new Date().toISOString(),
+      created_at: now,
     });
   });
 
@@ -266,7 +273,7 @@ function convertDemoToApiProperties(): Property[] {
       slug: `demo-prop-${index}`,
       location: prop.location,
       price: String(prop.price),
-      price_display: String(prop.price),
+      price_display: `₦${Number(prop.price).toLocaleString()}`,
       price_suffix:
         listing === "rent"
           ? "/month"
@@ -306,9 +313,15 @@ function convertDemoToApiProperties(): Property[] {
             : "+234 800 000 0000",
         email:
           "agent" in prop && prop.agent ? prop.agent.email : "agent@demo.com",
+        agent_type: "Real Estate Agent",
+        company_name:
+          "agent" in prop && prop.agent ? prop.agent.company : "REM Demo Realty",
         verified: true,
+        rating: "agent" in prop && prop.agent ? prop.agent.rating : 4.6,
+        years_of_experience: 4,
+        total_listings: 12,
       },
-      created_at: new Date().toISOString(),
+      created_at: now,
     });
   });
 
@@ -323,21 +336,21 @@ function getDemoHomeData(): HomePageData {
       {
         listing_type: "for_sale",
         label: "For Sale",
-        icon: "sale",
+        icon: "home",
         description: "Properties available for purchase",
         count: demoSaleProperties.length,
       },
       {
         listing_type: "rent",
         label: "For Rent",
-        icon: "rent",
+        icon: "key",
         description: "Properties available for rent",
         count: demoRentProperties.length,
       },
       {
         listing_type: "short_let",
         label: "Short-Let",
-        icon: "short_let",
+        icon: "calendar",
         description: "Properties available for short-term stays",
         count: demoShortletProperties.length,
       },

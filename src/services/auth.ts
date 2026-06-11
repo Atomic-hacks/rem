@@ -12,6 +12,8 @@ type RegisterRequest = {
   password?: string;
   rePassword?: string;
   agentType?: AgentType;
+  gender?: string;
+  dateOfBirth?: string;
 };
 
 type ActivateRequest = {
@@ -24,6 +26,18 @@ type LoginRequest = {
   password: string;
 };
 
+export type UserRecord = {
+  id: number;
+  name?: string;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  phone_number?: string;
+  role?: UserRole;
+  auth_provider?: AuthProvider;
+  is_active?: boolean;
+};
+
 export type RegisteredUser = {
   first_name: string;
   last_name: string;
@@ -31,6 +45,29 @@ export type RegisteredUser = {
   email?: string;
   phone_number?: string;
   agent_type?: AgentType;
+  onboarding_token?: string;
+  next_step?: string;
+  message?: string;
+};
+
+export type AgentProfessionalDetailsRequest = {
+  onboardingToken: string;
+  agentType: AgentType;
+  officeAddress: string;
+  yearsOfExperience: number;
+  licenseNumber?: string;
+  officeLocation: string;
+};
+
+export type AgentDocumentVerificationRequest = {
+  onboardingToken: string;
+  licenseDocument?: File;
+  profilePicture?: File;
+};
+
+export type OnboardingStepResponse = {
+  next_step: string;
+  message: string;
 };
 
 export type UserByEmail = {
@@ -71,13 +108,24 @@ export class ApiError extends Error {
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
 const REGISTER_USER_ENDPOINT =
-  process.env.NEXT_PUBLIC_REGISTER_USER_ENDPOINT ?? "/api/v1/users/customer_signup/";
+  process.env.NEXT_PUBLIC_REGISTER_USER_ENDPOINT ??
+  "/api/v1/users/customer_signup/";
 const REGISTER_AGENT_ENDPOINT =
-  process.env.NEXT_PUBLIC_REGISTER_AGENT_ENDPOINT ?? "/api/v1/users/agent_signup/";
+  process.env.NEXT_PUBLIC_REGISTER_AGENT_ENDPOINT ??
+  "/api/v1/users/agent_signup/";
+const USERS_ENDPOINT =
+  process.env.NEXT_PUBLIC_USERS_ENDPOINT ?? "/api/v1/users/";
+const AGENT_PROFESSIONAL_DETAILS_ENDPOINT =
+  process.env.NEXT_PUBLIC_AGENT_PROFESSIONAL_DETAILS_ENDPOINT ??
+  "/api/v1/users/agent_professional_details/";
+const AGENT_DOCUMENT_VERIFICATION_ENDPOINT =
+  process.env.NEXT_PUBLIC_AGENT_DOCUMENT_VERIFICATION_ENDPOINT ??
+  "/api/v1/users/agent_document_verification/";
 const ACTIVATE_USER_ENDPOINT =
   process.env.NEXT_PUBLIC_ACTIVATE_USER_ENDPOINT ?? "/api/v1/users/activation/";
 const RESEND_ACTIVATION_ENDPOINT =
-  process.env.NEXT_PUBLIC_RESEND_ACTIVATION_ENDPOINT ?? "/api/v1/users/resend_activation/";
+  process.env.NEXT_PUBLIC_RESEND_ACTIVATION_ENDPOINT ??
+  "/api/v1/users/resend_activation/";
 const USER_BY_EMAIL_ENDPOINT = "/api/v1/users/email";
 const CURRENT_USER_ENDPOINT =
   process.env.NEXT_PUBLIC_CURRENT_USER_ENDPOINT ?? "/api/v1/users/me/";
@@ -87,7 +135,8 @@ const TOKEN_REFRESH_ENDPOINT =
   process.env.NEXT_PUBLIC_TOKEN_REFRESH_ENDPOINT ?? "/api/v1/jwt/refresh/";
 const TOKEN_VERIFY_ENDPOINT =
   process.env.NEXT_PUBLIC_TOKEN_VERIFY_ENDPOINT ?? "/api/v1/jwt/verify/";
-const DEBUG_AUTH_REQUESTS = process.env.NEXT_PUBLIC_DEBUG_AUTH_REQUESTS === "true";
+const DEBUG_AUTH_REQUESTS =
+  process.env.NEXT_PUBLIC_DEBUG_AUTH_REQUESTS === "true";
 
 function buildUrl(path: string) {
   if (/^https?:\/\//.test(path)) {
@@ -104,7 +153,11 @@ async function parseResponse<T>(response: Response): Promise<T> {
     : await response.text();
 
   if (!response.ok) {
-    throw new ApiError(formatApiError(payload, response.status), response.status, payload);
+    throw new ApiError(
+      formatApiError(payload, response.status),
+      response.status,
+      payload,
+    );
   }
 
   return payload as T;
@@ -116,7 +169,9 @@ function formatApiError(payload: unknown, status?: number) {
       return "Server error from API. The backend returned an HTML 500 page instead of JSON.";
     }
 
-    return payload || `Request failed${status ? ` with status ${status}` : ""}.`;
+    return (
+      payload || `Request failed${status ? ` with status ${status}` : ""}.`
+    );
   }
 
   if (!payload || typeof payload !== "object") {
@@ -189,6 +244,8 @@ export async function registerUser(request: RegisterRequest) {
   appendIfPresent(formData, "password", request.password);
   appendIfPresent(formData, "re_password", request.rePassword);
   appendIfPresent(formData, "agent_type", request.agentType);
+  appendIfPresent(formData, "gender", request.gender);
+  appendIfPresent(formData, "date_of_birth", request.dateOfBirth);
 
   const endpoint = request.agentType
     ? REGISTER_AGENT_ENDPOINT
@@ -205,6 +262,124 @@ export async function registerUser(request: RegisterRequest) {
   });
 
   return parseResponse<RegisteredUser>(response);
+}
+
+export async function updateAgentProfessionalDetails(
+  request: AgentProfessionalDetailsRequest,
+) {
+  const formData = new FormData();
+  formData.append("onboarding_token", request.onboardingToken);
+  formData.append("agent_type", request.agentType);
+  formData.append("office_address", request.officeAddress.trim());
+  formData.append("years_of_experience", String(request.yearsOfExperience));
+  appendIfPresent(formData, "license_number", request.licenseNumber?.trim());
+  formData.append("office_location", request.officeLocation.trim());
+
+  const response = await fetch(buildUrl(AGENT_PROFESSIONAL_DETAILS_ENDPOINT), {
+    method: "PATCH",
+    headers: {
+      Accept: "application/json",
+    },
+    body: formData,
+  });
+
+  return parseResponse<OnboardingStepResponse>(response);
+}
+
+export async function submitAgentDocumentVerification(
+  request: AgentDocumentVerificationRequest,
+) {
+  const formData = new FormData();
+  formData.append("onboarding_token", request.onboardingToken);
+
+  if (request.licenseDocument) {
+    formData.append("license_document", request.licenseDocument);
+  }
+
+  if (request.profilePicture) {
+    formData.append("profile_picture", request.profilePicture);
+  }
+
+  const response = await fetch(buildUrl(AGENT_DOCUMENT_VERIFICATION_ENDPOINT), {
+    method: "PATCH",
+    headers: {
+      Accept: "application/json",
+    },
+    body: formData,
+  });
+
+  return parseResponse<OnboardingStepResponse>(response);
+}
+
+export async function createUser(formData: FormData) {
+  const response = await fetch(buildUrl(USERS_ENDPOINT), {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+    },
+    body: formData,
+  });
+
+  return parseResponse<UserRecord>(response);
+}
+
+export async function getUser(id: string | number, accessToken?: string) {
+  const response = await fetch(buildUrl(`${USERS_ENDPOINT}${id}/`), {
+    headers: {
+      Accept: "application/json",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+  });
+
+  return parseResponse<UserRecord>(response);
+}
+
+export async function updateUser(
+  id: string | number,
+  formData: FormData,
+  accessToken: string,
+) {
+  const response = await fetch(buildUrl(`${USERS_ENDPOINT}${id}/`), {
+    method: "PUT",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: formData,
+  });
+
+  return parseResponse<UserRecord>(response);
+}
+
+export async function patchUser(
+  id: string | number,
+  formData: FormData,
+  accessToken: string,
+) {
+  const response = await fetch(buildUrl(`${USERS_ENDPOINT}${id}/`), {
+    method: "PATCH",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: formData,
+  });
+
+  return parseResponse<UserRecord>(response);
+}
+
+export async function deleteUser(id: string | number, accessToken: string) {
+  const response = await fetch(buildUrl(`${USERS_ENDPOINT}${id}/`), {
+    method: "DELETE",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    await parseResponse(response);
+  }
 }
 
 export async function activateUser(request: ActivateRequest) {
@@ -262,10 +437,44 @@ export async function getCurrentUser(accessToken: string) {
   return parseResponse<UserByEmail>(response);
 }
 
+export async function updateCurrentUser(
+  formData: FormData,
+  accessToken: string,
+) {
+  const response = await fetch(buildUrl(CURRENT_USER_ENDPOINT), {
+    method: "PUT",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: formData,
+  });
+
+  return parseResponse<UserByEmail>(response);
+}
+
+export async function patchCurrentUser(
+  formData: FormData,
+  accessToken: string,
+) {
+  const response = await fetch(buildUrl(CURRENT_USER_ENDPOINT), {
+    method: "PATCH",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: formData,
+  });
+
+  return parseResponse<UserByEmail>(response);
+}
+
 export async function loginUser(request: LoginRequest) {
   const identifier = request.identifier.trim();
   const isEmail = identifier.includes("@");
-  const identifierValue = isEmail ? identifier : normalizePhoneIdentifier(identifier);
+  const identifierValue = isEmail
+    ? identifier
+    : normalizePhoneIdentifier(identifier);
   const response = await fetch(buildUrl(LOGIN_ENDPOINT), {
     method: "POST",
     headers: {
@@ -317,8 +526,17 @@ export function persistAuthSession(tokens: TokenPair) {
 }
 
 export function persistAuthUser(user: UserByEmail) {
+  const intentIsAgent =
+    typeof window !== "undefined" &&
+    window.localStorage.getItem("rem-auth-intent") === "agent";
+
+  const patchedUser =
+    intentIsAgent && (!user.role || user.role === "Prospective Buyer/Tenant")
+      ? ({ ...user, role: "Agent" } as unknown as UserByEmail)
+      : user;
+
   window.localStorage.setItem("rem-authenticated", "true");
-  window.localStorage.setItem("rem-user", JSON.stringify(user));
+  window.localStorage.setItem("rem-user", JSON.stringify(patchedUser));
 }
 
 export function getStoredAccessToken() {
@@ -329,11 +547,24 @@ export function getStoredRefreshToken() {
   return window.localStorage.getItem("rem-refresh-token") ?? "";
 }
 
+export function persistAgentOnboardingToken(token: string) {
+  window.localStorage.setItem("rem-agent-onboarding-token", token);
+}
+
+export function getStoredAgentOnboardingToken() {
+  return window.localStorage.getItem("rem-agent-onboarding-token") ?? "";
+}
+
+export function clearAgentOnboardingToken() {
+  window.localStorage.removeItem("rem-agent-onboarding-token");
+}
+
 export function clearAuthSession() {
   window.localStorage.removeItem("rem-authenticated");
   window.localStorage.removeItem("rem-access-token");
   window.localStorage.removeItem("rem-refresh-token");
   window.localStorage.removeItem("rem-user");
+  window.localStorage.removeItem("rem-agent-onboarding-token");
 }
 
 export function getPendingActivationEmail() {

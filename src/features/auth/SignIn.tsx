@@ -1,10 +1,11 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FcGoogle } from "react-icons/fc";
 import {
   FiCheck,
@@ -22,6 +23,12 @@ import {
   persistAuthSession,
   persistAuthUser,
 } from "@/services/auth";
+import {
+  getStoredAuthIntent,
+  persistAuthIntent,
+  routeForAuthenticatedUser,
+  routeForAuthIntent,
+} from "./auth-routing";
 
 const panelMotion = {
   initial: { opacity: 0, x: 24 },
@@ -41,7 +48,10 @@ function AuthPanel({
   children: ReactNode;
 }) {
   return (
-    <motion.div {...panelMotion} className="w-full max-w-md flex flex-col gap-7">
+    <motion.div
+      {...panelMotion}
+      className="w-full max-w-md flex flex-col gap-7"
+    >
       <div className="flex flex-col gap-2">
         <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-amber-500">
           {eyebrow}
@@ -109,7 +119,11 @@ function TermsCheckbox({
 }) {
   return (
     <label className="flex items-center gap-3 cursor-pointer select-none">
-      <button type="button" onClick={onToggle} className="shrink-0 cursor-pointer">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="shrink-0 cursor-pointer"
+      >
         <FiCheckCircle
           size={20}
           className={agreed ? "text-amber-400" : "text-stone-300"}
@@ -117,11 +131,17 @@ function TermsCheckbox({
       </button>
       <span className="text-stone-500 text-[12.5px] font-light">
         I agree to the{" "}
-        <Link href="/terms" className="text-amber-500 hover:underline font-medium">
+        <Link
+          href="/terms"
+          className="text-amber-500 hover:underline font-medium"
+        >
           Terms
         </Link>{" "}
         and{" "}
-        <Link href="/privacy" className="text-amber-500 hover:underline font-medium">
+        <Link
+          href="/privacy"
+          className="text-amber-500 hover:underline font-medium"
+        >
           Privacy Policy
         </Link>
         .
@@ -201,6 +221,15 @@ export default function SignInPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState("");
 
+  useEffect(() => {
+    setRole(getStoredAuthIntent());
+  }, []);
+
+  const selectRole = (nextRole: "buyer" | "agent") => {
+    setRole(nextRole);
+    persistAuthIntent(nextRole);
+  };
+
   const handleSignIn = async () => {
     setFeedback("");
 
@@ -225,11 +254,15 @@ export default function SignInPage() {
       try {
         const user = await getCurrentUser(tokens.access);
         persistAuthUser(user);
+        // Pass role as intent tiebreaker so agents are routed correctly
+        // even when the backend hasn't yet assigned a recognised agent role.
+        router.push(routeForAuthenticatedUser(user, role));
+        return;
       } catch {
         // Token login succeeded; profile hydration can be retried later.
       }
 
-      router.push("/");
+      router.push(routeForAuthIntent(role));
     } catch (error) {
       setFeedback(
         error instanceof Error
@@ -258,14 +291,16 @@ export default function SignInPage() {
           <button
             key={item}
             type="button"
-            onClick={() => setRole(item)}
+            onClick={() => selectRole(item)}
             className={`flex-1 px-3 py-3 text-sm font-medium transition-colors duration-200 cursor-pointer ${
               role === item
                 ? "bg-amber-400 text-white"
                 : "text-stone-500 hover:bg-stone-50"
             }`}
           >
-            {item === "buyer" ? "I'm looking for a home" : "I'm an agent / landlord"}
+            {item === "buyer"
+              ? "I'm looking for a home"
+              : "I'm an agent / landlord"}
           </button>
         ))}
       </div>
@@ -281,7 +316,7 @@ export default function SignInPage() {
           Google
         </motion.button>
         <Link
-          href="/sign-in"
+          href="/auth/login"
           className="flex items-center justify-center gap-2.5 py-3 rounded-xl border border-stone-200 bg-white text-stone-600 text-sm font-light hover:border-amber-300 transition-colors duration-200"
         >
           <FiPhone size={16} className="text-amber-500" />
@@ -310,9 +345,12 @@ export default function SignInPage() {
       </div>
 
       <div className="flex items-center justify-between gap-4">
-        <TermsCheckbox agreed={agreed} onToggle={() => setAgreed((value) => !value)} />
+        <TermsCheckbox
+          agreed={agreed}
+          onToggle={() => setAgreed((value) => !value)}
+        />
         <Link
-          href="/forgot-password"
+          href="/auth/forgot-password"
           className="shrink-0 text-[12.5px] font-medium text-amber-500 hover:text-amber-600"
         >
           Forgot?
@@ -327,7 +365,7 @@ export default function SignInPage() {
       <p className="text-center text-[12.5px] text-stone-400 font-light">
         Don&apos;t have an account?{" "}
         <Link
-          href="/sign-up"
+          href="/auth/register"
           className="text-amber-500 hover:text-amber-600 font-medium transition-colors"
         >
           Sign up
@@ -365,7 +403,7 @@ export function PhoneSignUpPanel() {
           Google
         </motion.button>
         <Link
-          href="/sign-up"
+          href="/auth/register"
           className="flex items-center justify-center gap-3 py-3.5 rounded-xl border border-stone-200 bg-white text-amber-500 text-sm tracking-wide shadow-sm hover:border-amber-300 transition-colors"
         >
           <FiMail size={20} />
@@ -407,8 +445,11 @@ export function PhoneSignUpPanel() {
         </div>
       </div>
 
-      <TermsCheckbox agreed={agreed} onToggle={() => setAgreed((value) => !value)} />
-      <PrimaryLink href="/sign-up/success">Create Account</PrimaryLink>
+      <TermsCheckbox
+        agreed={agreed}
+        onToggle={() => setAgreed((value) => !value)}
+      />
+      <PrimaryLink href="/auth/register">Create Account</PrimaryLink>
     </AuthPanel>
   );
 }
@@ -441,7 +482,7 @@ export function AccountCreatedPanel() {
         </div>
       </div>
 
-      <PrimaryLink href="/">Continue</PrimaryLink>
+      <PrimaryLink href="/home">Continue</PrimaryLink>
     </AuthPanel>
   );
 }
@@ -472,12 +513,12 @@ export function ForgotPasswordPanel() {
         />
       </div>
 
-      <PrimaryLink href="/reset-password">Send Reset Link</PrimaryLink>
+      <PrimaryLink href="/auth/reset-password">Send Reset Link</PrimaryLink>
 
       <p className="text-center text-[12.5px] text-stone-400 font-light">
         Remembered your password?{" "}
         <Link
-          href="/sign-in"
+          href="/auth/login"
           className="text-amber-500 hover:text-amber-600 font-medium transition-colors"
         >
           Back to sign in
@@ -523,7 +564,7 @@ export function ResetPasswordPanel() {
         Passwords should be at least 8 characters.
       </div>
 
-      <PrimaryLink href="/sign-up/success">Reset Password</PrimaryLink>
+      <PrimaryLink href="/auth/login">Reset Password</PrimaryLink>
     </AuthPanel>
   );
 }

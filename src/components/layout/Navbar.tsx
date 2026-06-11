@@ -3,21 +3,35 @@
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
-import { FiMenu, FiX } from "react-icons/fi";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { FiLogOut, FiMenu, FiUser, FiX } from "react-icons/fi";
+import { clearAuthSession, getStoredAccessToken } from "@/services";
 
 const navLinks = [
   { label: "Home", href: "/" },
   { label: "For Sale", href: "/userSale" },
   { label: "For Rent", href: "/userRent" },
   { label: "Short-Let", href: "/shortlet" },
-  { label: "Agent", href: "/agent" },
+  { label: "Agents", href: "/agents" },
 ];
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [authenticated, setAuthenticated] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    setAuthenticated(Boolean(getStoredAccessToken()));
+  }, []);
+
+  const logout = () => {
+    clearAuthSession();
+    setAuthenticated(false);
+    setMenuOpen(false);
+    router.replace("/home");
+  };
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" || pathname === "/home" : pathname.startsWith(href);
@@ -52,22 +66,44 @@ export default function Navbar() {
         </div>
 
         <div className="hidden md:flex items-center gap-3 shrink-0">
-          <motion.a
-            href="/sign-in"
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            className="text-sm font-medium text-stone-600 hover:text-stone-900 transition-colors duration-150 px-2"
-          >
-            Login
-          </motion.a>
-          <motion.a
-            href="/sign-up/onboarding"
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            className="text-sm font-semibold text-white bg-amber-400 hover:bg-amber-500 transition-colors duration-150 px-5 py-2 rounded-lg shadow-sm"
-          >
-            Sign Up
-          </motion.a>
+          {authenticated ? (
+            <>
+              <Link
+                href="/profile"
+                className="inline-flex items-center gap-2 text-sm font-medium text-stone-600 hover:text-stone-900 transition-colors duration-150 px-2"
+              >
+                <FiUser size={15} />
+                Profile
+              </Link>
+              <button
+                type="button"
+                onClick={logout}
+                className="inline-flex items-center gap-2 text-sm font-semibold text-white bg-amber-400 hover:bg-amber-500 transition-colors duration-150 px-4 py-2 rounded-lg shadow-sm"
+              >
+                <FiLogOut size={15} />
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <motion.a
+                href="/auth/login"
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                className="text-sm font-medium text-stone-600 hover:text-stone-900 transition-colors duration-150 px-2"
+              >
+                Login
+              </motion.a>
+              <motion.a
+                href="/auth/register"
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                className="text-sm font-semibold text-white bg-amber-400 hover:bg-amber-500 transition-colors duration-150 px-5 py-2 rounded-lg shadow-sm"
+              >
+                Sign Up
+              </motion.a>
+            </>
+          )}
         </div>
 
         <button
@@ -99,20 +135,41 @@ export default function Navbar() {
               {link.label}
             </Link>
           ))}
-          <div className="flex gap-3 mt-2 pt-3 border-t border-stone-100">
-            <Link
-              href="/sign-in"
-              className="flex-1 text-center text-sm font-medium text-stone-600 border border-stone-200 rounded-lg py-2.5 hover:bg-stone-50 transition-colors"
-            >
-              Login
-            </Link>
-            <Link
-              href="/sign-up/onboarding"
-              className="flex-1 text-center text-sm font-semibold text-white bg-amber-400 hover:bg-amber-500 rounded-lg py-2.5 transition-colors"
-            >
-              Sign Up
-            </Link>
-          </div>
+          {authenticated ? (
+            <div className="flex gap-3 mt-2 pt-3 border-t border-stone-100">
+              <Link
+                href="/profile"
+                onClick={() => setMenuOpen(false)}
+                className="flex-1 inline-flex items-center justify-center gap-2 text-sm font-medium text-stone-600 border border-stone-200 rounded-lg py-2.5 hover:bg-stone-50 transition-colors"
+              >
+                <FiUser size={15} />
+                Profile
+              </Link>
+              <button
+                type="button"
+                onClick={logout}
+                className="flex-1 inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-amber-400 hover:bg-amber-500 rounded-lg py-2.5 transition-colors"
+              >
+                <FiLogOut size={15} />
+                Logout
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-3 mt-2 pt-3 border-t border-stone-100">
+              <Link
+                href="/auth/login"
+                className="flex-1 text-center text-sm font-medium text-stone-600 border border-stone-200 rounded-lg py-2.5 hover:bg-stone-50 transition-colors"
+              >
+                Login
+              </Link>
+              <Link
+                href="/auth/register"
+                className="flex-1 text-center text-sm font-semibold text-white bg-amber-400 hover:bg-amber-500 rounded-lg py-2.5 transition-colors"
+              >
+                Sign Up
+              </Link>
+            </div>
+          )}
         </motion.div>
       )}
     </motion.nav>

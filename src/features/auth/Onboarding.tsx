@@ -3,6 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import type { AuthIntent } from "./auth-routing";
+import { persistAuthIntent } from "./auth-routing";
 import {
   FiSearch,
   FiHeart,
@@ -26,7 +28,8 @@ const cards = [
       { icon: <FiPhone size={13} />, label: "Direct agent contact" },
     ],
     cta: "Sign up as a Buyer / Renter",
-    href: "/sign-up",
+    href: "/auth/register",
+    intent: "buyer" as AuthIntent,
   },
   {
     iconSrc: "/agent.svg",
@@ -44,7 +47,8 @@ const cards = [
       { icon: <FiAward size={13} />, label: "Build your profile" },
     ],
     cta: "Sign up as an Agent",
-    href: "/sign-up",
+    href: "/auth/register",
+    intent: "agent" as AuthIntent,
   },
 ];
 
@@ -126,6 +130,7 @@ export default function WelcomePage() {
             {/* CTA */}
             <Link
               href={card.href}
+              onClick={() => persistAuthIntent(card.intent)}
               className="mt-2 block w-full py-3.5 rounded-xl bg-amber-400 hover:bg-amber-500 text-center text-white font-semibold text-sm tracking-wide transition-colors duration-200"
             >
               {card.cta}
@@ -135,7 +140,7 @@ export default function WelcomePage() {
             <p className="text-center text-[12.5px] text-stone-400 font-light">
               Already have an account?{" "}
               <Link
-                href="/sign-in"
+                href="/auth/login"
                 className="text-amber-500 hover:text-amber-600 font-medium transition-colors"
               >
                 Sign In

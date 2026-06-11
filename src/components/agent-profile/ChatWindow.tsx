@@ -1,17 +1,13 @@
-import { Send } from "lucide-react";
+import { LuSend as Send } from "react-icons/lu";
 
 export default function ChatWindow() {
   return (
     <div className="flex-1 bg-white rounded-xl border overflow-hidden flex flex-col">
       <div className="h-[70px] border-b px-6 flex items-center">
         <div>
-          <h3 className="font-medium">
-            John Smith
-          </h3>
+          <h3 className="font-medium">John Smith</h3>
 
-          <p className="text-sm text-gray-500">
-            Premium Properties
-          </p>
+          <p className="text-sm text-gray-500">Premium Properties</p>
         </div>
       </div>
 
@@ -22,8 +18,8 @@ export default function ChatWindow() {
           </div>
 
           <div className="bg-[#f8f4ef] rounded-xl px-4 py-3 max-w-[260px]">
-            The property is still available. When
-            would you like to schedule a visit?
+            The property is still available. When would you like to schedule a
+            visit?
           </div>
         </div>
 

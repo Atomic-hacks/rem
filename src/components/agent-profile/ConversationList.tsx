@@ -1,4 +1,4 @@
-import { Search } from "lucide-react";
+import { LuSearch as Search } from "react-icons/lu";
 
 const users = [
   {
@@ -38,11 +38,7 @@ export default function ConversationList() {
           <div
             key={user.id}
             className={`h-[72px] px-4 flex items-center justify-between border-b cursor-pointer
-              ${
-                user.active
-                  ? "bg-[#fbf3e4]"
-                  : "hover:bg-gray-50"
-              }
+              ${user.active ? "bg-[#fbf3e4]" : "hover:bg-gray-50"}
             `}
           >
             <div className="flex items-center gap-3">
