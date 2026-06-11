@@ -1,9 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  turbopack: {
-    root: "/home/atomic/Documents/projects/rem",
-  },
   images: {
     remotePatterns: [
       {
