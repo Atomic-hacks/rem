@@ -5,13 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import {
-  FiChevronDown,
-  FiLogOut,
-  FiMenu,
-  FiUser,
-  FiX,
-} from "react-icons/fi";
+import { FiChevronDown, FiLogOut, FiMenu, FiUser, FiX } from "react-icons/fi";
 import { clearAuthSession, getStoredAccessToken } from "@/services";
 
 const navLinks = [{ label: "Home", href: "/" }];
@@ -36,6 +30,18 @@ export default function Navbar() {
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // Reset open menus when the route changes. This is done during render
+  // (React's documented pattern for "adjusting state when a value changes")
+  // rather than in a useEffect, so there's no extra render/commit pass and
+  // no risk of a stale menu flashing open for a frame after navigation.
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname);
+    setMenuOpen(false);
+    setPropertiesOpen(false);
+    setMobilePropertiesOpen(false);
+  }
+
   // Close the desktop dropdown when clicking outside of it
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -50,13 +56,6 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Reset open menus whenever the route changes
-  useEffect(() => {
-    setMenuOpen(false);
-    setPropertiesOpen(false);
-    setMobilePropertiesOpen(false);
-  }, [pathname]);
-
   const logout = () => {
     clearAuthSession();
     setMenuOpen(false);
@@ -70,9 +69,7 @@ export default function Navbar() {
       ? pathname === "/" || pathname === "/home"
       : pathname.startsWith(href);
 
-  const isPropertiesActive = propertyLinks.some((link) =>
-    isActive(link.href)
-  );
+  const isPropertiesActive = propertyLinks.some((link) => isActive(link.href));
 
   return (
     <motion.nav
