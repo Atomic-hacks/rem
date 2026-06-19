@@ -1,11 +1,11 @@
 "use client";
 
 import { PropertyDetailTemplate } from "@/features/property-details";
-import { getPropertyBySlug } from "@/services";
+import { usePropertyDetail, useSimilarProperties } from "@/hooks/useProperty";
 import type { ApiProperty } from "@/services";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 
 function toNumber(value: string | number | undefined) {
   const parsed = Number(value ?? 0);
@@ -25,7 +25,9 @@ function propertyImages(property: ApiProperty) {
   const gallery = property.images?.map((image) => image.url).filter(Boolean) ?? [];
   return gallery.length > 0
     ? gallery
-    : [property.main_image_url || "/villa1.jpg"];
+    : property.main_image_url
+      ? [property.main_image_url]
+      : [];
 }
 
 function features(property: ApiProperty) {
@@ -33,16 +35,16 @@ function features(property: ApiProperty) {
 }
 
 function agent(property: ApiProperty) {
-  const fullName = property.agent?.full_name || "Property Agent";
+  const fullName = property.agent?.full_name ?? "";
   return {
     name: fullName,
-    company: property.agent?.company_name || property.agent?.agent_type || "Real Estate Agent",
+    company: property.agent?.company_name || property.agent?.agent_type || "",
     location: property.location,
     rating: toNumber(property.agent?.rating) || 0,
     reviews: 0,
     phone: property.agent?.phone || "",
     email: property.agent?.email || "",
-    initials: initials(fullName) || "RA",
+    initials: initials(fullName || property.agent?.company_name || property.agent?.agent_type || ""),
   };
 }
 
@@ -66,44 +68,9 @@ export function ApiPropertyDetailPage({
   notFoundLabel: string;
 }) {
   const params = useParams<{ id: string }>();
-  const slug = params.id;
-  const [property, setProperty] = useState<ApiProperty | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!slug) {
-      setLoading(false);
-      setError("Property not found.");
-      return;
-    }
-
-    let mounted = true;
-    setLoading(true);
-    setError("");
-
-    getPropertyBySlug(slug)
-      .then((response) => {
-        if (mounted) {
-          setProperty(response);
-        }
-      })
-      .catch((err: unknown) => {
-        if (mounted) {
-          setError(err instanceof Error ? err.message : "Unable to load property.");
-          setProperty(null);
-        }
-      })
-      .finally(() => {
-        if (mounted) {
-          setLoading(false);
-        }
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, [slug]);
+  const slug = params.id ?? null;
+  const { data: property, loading, error } = usePropertyDetail(slug);
+  const { data: similarProperties } = useSimilarProperties(slug);
 
   const detail = useMemo(() => {
     if (!property) {
@@ -130,7 +97,7 @@ export function ApiPropertyDetailPage({
     return (
       <section className="min-h-[60vh] bg-[#FAF7F2] px-4 py-16 text-center">
         <h1 className="text-2xl font-bold text-stone-800">{notFoundLabel}</h1>
-        {error && <p className="mt-2 text-sm text-stone-500">{error}</p>}
+        {error && <p className="mt-2 text-sm text-stone-500">{error.message}</p>}
         <Link
           href={backLink}
           className="mt-4 inline-flex font-medium text-amber-500 hover:text-amber-600"
@@ -145,18 +112,20 @@ export function ApiPropertyDetailPage({
     <PropertyDetailTemplate
       title={property.title}
       location={property.location}
-      price={toNumber(property.price)}
+      price={property.price_display || property.price}
       priceLabel={detail.priceLabel}
       images={detail.images}
       bedrooms={property.bedrooms}
       bathrooms={property.bathrooms}
       areaSqft={property.sqft}
-      description={property.description || "No description provided."}
+      description={property.description ?? ""}
       features={detail.features}
       agent={detail.agent}
       backLink={backLink}
       backLabel="Back to listings"
       tag={property.listing_type_display}
+      availabilityLabel={property.availability_label}
+      similarProperties={similarProperties ?? []}
     />
   );
 }

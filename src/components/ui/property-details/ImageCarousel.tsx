@@ -11,6 +11,14 @@ export interface ImageCarouselProps {
 export function ImageCarousel({ images, title }: ImageCarouselProps) {
   const [current, setCurrent] = useState(0);
 
+  if (images.length === 0) {
+    return (
+      <div className="relative w-full h-72 sm:h-96 rounded-2xl overflow-hidden bg-stone-100 border border-stone-200 flex items-center justify-center">
+        <p className="text-sm text-stone-500">No images available</p>
+      </div>
+    );
+  }
+
   return (
     <div className="relative w-full h-72 sm:h-96 rounded-2xl overflow-hidden">
       <AnimatePresence mode="wait">

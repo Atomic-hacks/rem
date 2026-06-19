@@ -1,109 +1,23 @@
 "use client";
 
 import { getProperties } from "@/services";
-import type { ApiProperty, PropertyFilterParams, PropertyListResponse } from "@/services";
-import Image from "next/image";
-import Link from "next/link";
+import type { PropertyFilterParams, PropertyListResponse } from "@/services";
+import { PropertyCard } from "@/components/property/PropertyCard";
 import { useEffect, useMemo, useState } from "react";
-import {
-  FiMapPin,
-  FiSearch,
-  FiSliders,
-  FiSquare,
-  FiVolume2,
-  FiWind,
-} from "react-icons/fi";
+import { FiSearch, FiSliders } from "react-icons/fi";
 
-type ListingKind = "for_sale" | "rent" | "short_let";
-
-const routeByKind: Record<ListingKind, string> = {
-  for_sale: "/userSale",
-  rent: "/userRent",
-  short_let: "/shortlet",
-};
+type ListingKind = "for_sale" | "rent" | "short_let" | "hotel";
 
 const titleByKind: Record<ListingKind, string> = {
   for_sale: "Properties For Sale",
   rent: "Properties For Rent",
   short_let: "Short-Let Properties",
+  hotel: "Hotel Properties",
 };
-
-const badgeClassByKind: Record<ListingKind, string> = {
-  for_sale: "bg-yellow-500",
-  rent: "bg-blue-500",
-  short_let: "bg-green-500",
-};
-
-const fallbackImage = "/villa1.jpg";
 
 function cleanNumber(value: string) {
   const numeric = Number(value.replace(/[^\d.]/g, ""));
   return Number.isFinite(numeric) && numeric > 0 ? numeric : undefined;
-}
-
-function detailHref(property: ApiProperty, kind: ListingKind) {
-  return `${routeByKind[kind]}/${property.slug}`;
-}
-
-function PropertyCard({ property, kind }: { property: ApiProperty; kind: ListingKind }) {
-  const image = property.main_image_url || fallbackImage;
-
-  return (
-    <Link
-      href={detailHref(property, kind)}
-      className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-md"
-    >
-      <div className="relative h-52 w-full">
-        <Image
-          src={image}
-          alt={property.title}
-          fill
-          unoptimized={image.startsWith("http")}
-          className="object-cover"
-        />
-        <span
-          className={`absolute right-3 top-3 rounded-full px-3 py-1 text-xs font-medium text-white ${badgeClassByKind[kind]}`}
-        >
-          {property.listing_type_display}
-        </span>
-      </div>
-
-      <div className="p-5">
-        <h3 className="line-clamp-1 text-base font-semibold text-gray-800">
-          {property.title}
-        </h3>
-
-        <div className="mt-2 flex items-center gap-1 text-sm text-gray-500">
-          <FiMapPin className="h-4 w-4 shrink-0" />
-          <span className="line-clamp-1">{property.location}</span>
-        </div>
-
-        <p className="mt-4 text-2xl font-bold text-yellow-500">
-          {property.price_display}
-          {property.price_suffix && (
-            <span className="text-sm font-medium text-gray-400">
-              {property.price_suffix}
-            </span>
-          )}
-        </p>
-
-        <div className="mt-5 flex flex-wrap items-center gap-4 text-sm text-gray-500">
-          <div className="flex items-center gap-1">
-            <FiVolume2 className="h-4 w-4" />
-            <span>{property.bedrooms} Beds</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <FiWind className="h-4 w-4" />
-            <span>{property.bathrooms} Baths</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <FiSquare className="h-4 w-4" />
-            <span>{property.sqft.toLocaleString()} sqft</span>
-          </div>
-        </div>
-      </div>
-    </Link>
-  );
 }
 
 export function PropertyListingPage({ kind }: { kind: ListingKind }) {
@@ -113,6 +27,12 @@ export function PropertyListingPage({ kind }: { kind: ListingKind }) {
   const [maxPrice, setMaxPrice] = useState("");
   const [bedrooms, setBedrooms] = useState(0);
   const [bathrooms, setBathrooms] = useState(0);
+  const [maxBedrooms, setMaxBedrooms] = useState(0);
+  const [propertyType, setPropertyType] = useState("");
+  const [amenities, setAmenities] = useState("");
+  const [isAvailable, setIsAvailable] = useState(true);
+  const [ordering, setOrdering] = useState("-created_at");
+  const [limit, setLimit] = useState(12);
   const [page, setPage] = useState(1);
   const [data, setData] = useState<PropertyListResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -124,23 +44,49 @@ export function PropertyListingPage({ kind }: { kind: ListingKind }) {
     setMinPrice(params.get("min_price") ?? "");
     setMaxPrice(params.get("max_price") ?? "");
     setSearch(params.get("search") ?? "");
+    setPropertyType(params.get("property_type") ?? "");
+    setAmenities(params.get("amenities") ?? "");
+    setOrdering(params.get("ordering") ?? "-created_at");
+    setLimit(Number(params.get("limit") ?? 12) || 12);
+    setPage(Number(params.get("page") ?? 1) || 1);
+    setMaxBedrooms(Number(params.get("max_bedrooms") ?? 0) || 0);
+    const isAvailableParam = params.get("is_available");
+    setIsAvailable(isAvailableParam === null ? true : isAvailableParam === "true");
   }, []);
 
   const filters = useMemo<PropertyFilterParams>(
     () => ({
       listing_type: kind,
-      is_available: true,
-      limit: 12,
+      is_available: isAvailable,
+      limit,
       page,
       search: search.trim() || undefined,
       location: location.trim() || undefined,
       min_price: cleanNumber(minPrice),
       max_price: cleanNumber(maxPrice),
       min_bedrooms: bedrooms || undefined,
+      max_bedrooms: maxBedrooms || undefined,
       min_bathrooms: bathrooms || undefined,
-      ordering: "-created_at",
+      property_type: propertyType.trim() || undefined,
+      amenities: amenities.trim() || undefined,
+      ordering,
     }),
-    [bathrooms, bedrooms, kind, location, maxPrice, minPrice, page, search],
+    [
+      amenities,
+      bathrooms,
+      bedrooms,
+      isAvailable,
+      kind,
+      limit,
+      location,
+      maxBedrooms,
+      maxPrice,
+      minPrice,
+      ordering,
+      page,
+      propertyType,
+      search,
+    ],
   );
 
   useEffect(() => {
@@ -245,7 +191,12 @@ export function PropertyListingPage({ kind }: { kind: ListingKind }) {
                   <button
                     key={item}
                     type="button"
-                    onClick={() => resetPage(() => setBedrooms(bedrooms === item ? 0 : item))}
+                    onClick={() =>
+                      resetPage(() => {
+                        const nextValue = bedrooms === item ? 0 : item;
+                        setBedrooms(nextValue);
+                      })
+                    }
                     className={`flex h-9 w-9 items-center justify-center rounded-lg border text-sm transition ${
                       bedrooms === item
                         ? "border-yellow-400 bg-yellow-400 text-black"
@@ -265,7 +216,12 @@ export function PropertyListingPage({ kind }: { kind: ListingKind }) {
                   <button
                     key={item}
                     type="button"
-                    onClick={() => resetPage(() => setBathrooms(bathrooms === item ? 0 : item))}
+                    onClick={() =>
+                      resetPage(() => {
+                        const nextValue = bathrooms === item ? 0 : item;
+                        setBathrooms(nextValue);
+                      })
+                    }
                     className={`flex h-9 w-9 items-center justify-center rounded-lg border text-sm transition ${
                       bathrooms === item
                         ? "border-yellow-400 bg-yellow-400 text-black"
@@ -287,6 +243,12 @@ export function PropertyListingPage({ kind }: { kind: ListingKind }) {
                 setMaxPrice("");
                 setBedrooms(0);
                 setBathrooms(0);
+                setMaxBedrooms(0);
+                setPropertyType("");
+                setAmenities("");
+                setIsAvailable(true);
+                setOrdering("-created_at");
+                setLimit(12);
                 setPage(1);
               }}
               className="w-full rounded-xl border border-gray-200 bg-white py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
@@ -310,7 +272,7 @@ export function PropertyListingPage({ kind }: { kind: ListingKind }) {
 
             <div className="grid gap-6 md:grid-cols-2">
               {properties.map((property) => (
-                <PropertyCard key={property.id} property={property} kind={kind} />
+                <PropertyCard key={property.id} property={property} />
               ))}
             </div>
 

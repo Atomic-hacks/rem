@@ -1,31 +1,36 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FiSearch } from "react-icons/fi";
 import type { SearchConfig } from "@/services";
-
-const fallbackListingTypes = [
-  { value: "for_sale", label: "For Sale" },
-  { value: "rent", label: "For Rent" },
-  { value: "short_let", label: "Short Let" },
-];
 
 const routeByType: Record<string, string> = {
   for_sale: "/userSale",
   rent: "/userRent",
   short_let: "/shortlet",
+  hotel: "/hotel",
 };
 
 export default function Hero({ searchConfig }: { searchConfig?: SearchConfig }) {
-  const listingTypes = searchConfig?.listing_types.length
-    ? searchConfig.listing_types
-    : fallbackListingTypes;
+  const listingTypes = searchConfig?.listing_types ?? [];
   const [location, setLocation] = useState("");
-  const [type, setType] = useState(listingTypes[0]?.value ?? "for_sale");
+  const [type, setType] = useState(() => searchConfig?.listing_types?.[0]?.value ?? "");
   const [price, setPrice] = useState("0");
-  const priceRanges =
-    searchConfig?.price_ranges[type as keyof SearchConfig["price_ranges"]] ?? [];
+
+  useEffect(() => {
+    const initialType = searchConfig?.listing_types?.[0]?.value ?? "";
+    if (initialType && initialType !== type) {
+      setType(initialType);
+      setPrice("0");
+    }
+  }, [searchConfig?.listing_types, type]);
+
+  const priceRanges = useMemo(
+    () => (type ? searchConfig?.price_ranges[type as keyof SearchConfig["price_ranges"]] ?? [] : []),
+    [searchConfig?.price_ranges, type],
+  );
+
   const selectedRange = priceRanges[Number(price)];
   const route = routeByType[type] ?? "/userSale";
   const params = new URLSearchParams();
@@ -45,24 +50,21 @@ export default function Hero({ searchConfig }: { searchConfig?: SearchConfig }) 
   const searchHref = params.size ? `${route}?${params.toString()}` : route;
 
   return (
-    <section className="w-full bg-[#FFF8F2] pt-10 pb-20">
+    <section className="w-full bg-[#FFF8F2] pb-20 pt-10">
       <div className="mx-auto max-w-6xl px-4">
-        {/* Top Title */}
         <div className="text-center">
-          <h1 className="text-3xl md:text-5xl font-semibold text-gray-900">
+          <h1 className="text-3xl font-semibold text-gray-900 md:text-5xl">
             Find Your Perfect Property in Africa
           </h1>
 
-          <p className="mt-3 text-gray-500 text-sm md:text-base">
+          <p className="mt-3 text-sm text-gray-500 md:text-base">
             Discover thousands of properties for sale, rent, or short-let stays
             across Africa
           </p>
         </div>
 
-        {/* Search Card */}
-        <div className="mt-10 bg-white rounded-2xl shadow-sm border border-[#F3E9DD] p-5 md:p-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-            {/* Location */}
+        <div className="mt-10 rounded-2xl border border-[#F3E9DD] bg-white p-5 shadow-sm md:p-6">
+          <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-4">
             <div>
               <label className="text-sm text-gray-600">Location</label>
               <input
@@ -74,7 +76,6 @@ export default function Hero({ searchConfig }: { searchConfig?: SearchConfig }) 
               />
             </div>
 
-            {/* Type */}
             <div>
               <label className="text-sm text-gray-600">Type</label>
               <select
@@ -93,13 +94,13 @@ export default function Hero({ searchConfig }: { searchConfig?: SearchConfig }) 
               </select>
             </div>
 
-            {/* Price */}
             <div>
               <label className="text-sm text-gray-600">Price Range</label>
               <select
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#F6B100]"
+                disabled={priceRanges.length === 0}
               >
                 {(priceRanges.length
                   ? priceRanges
@@ -112,33 +113,31 @@ export default function Hero({ searchConfig }: { searchConfig?: SearchConfig }) 
               </select>
             </div>
 
-            {/* Search Button */}
             <Link
               href={searchHref}
-              className="flex items-center justify-center gap-2 bg-[#F6B100] hover:bg-[#e9a800] text-white font-medium rounded-lg px-5 py-3 transition"
+              className="flex items-center justify-center gap-2 rounded-lg bg-[#F6B100] px-5 py-3 font-medium text-white transition hover:bg-[#e9a800]"
             >
               <FiSearch size={18} />
               Search
             </Link>
           </div>
 
-          {/* Quick Filters */}
-          <div className="mt-5 flex flex-wrap gap-3 justify-center">
+          <div className="mt-5 flex flex-wrap justify-center gap-3">
             <Link
               href="/userSale"
-              className="px-4 py-2 rounded-full border border-gray-200 text-sm hover:bg-gray-50"
+              className="rounded-full border border-gray-200 px-4 py-2 text-sm hover:bg-gray-50"
             >
               Browse For Sale
             </Link>
             <Link
               href="/userRent"
-              className="px-4 py-2 rounded-full border border-gray-200 text-sm hover:bg-gray-50"
+              className="rounded-full border border-gray-200 px-4 py-2 text-sm hover:bg-gray-50"
             >
               Browse For Rent
             </Link>
             <Link
               href="/shortlet"
-              className="px-4 py-2 rounded-full border border-gray-200 text-sm hover:bg-gray-50"
+              className="rounded-full border border-gray-200 px-4 py-2 text-sm hover:bg-gray-50"
             >
               Browse Short-Let
             </Link>

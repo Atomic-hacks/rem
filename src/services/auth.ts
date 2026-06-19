@@ -84,6 +84,26 @@ export type UserByEmail = {
   is_active: boolean;
 };
 
+export type CurrentUserProfile = {
+  id: number;
+  email: string;
+  is_active: boolean;
+};
+
+export type CurrentUserMetadata = {
+  id: number;
+  name: string;
+  first_name_field: string;
+  last_name_field: string;
+  email: string;
+  phone_number: string;
+  role: UserRole;
+  auth_provider: AuthProvider;
+  is_email_verified: boolean;
+  is_phone_verified: boolean;
+  is_active: boolean;
+};
+
 export type TokenPair = {
   access: string;
   refresh: string;
@@ -129,6 +149,8 @@ const RESEND_ACTIVATION_ENDPOINT =
 const USER_BY_EMAIL_ENDPOINT = "/api/v1/users/email";
 const CURRENT_USER_ENDPOINT =
   process.env.NEXT_PUBLIC_CURRENT_USER_ENDPOINT ?? "/api/v1/users/me/";
+const USER_METADATA_ENDPOINT =
+  process.env.NEXT_PUBLIC_USER_METADATA_ENDPOINT ?? "/api/v1/users/metadatas/";
 const LOGIN_ENDPOINT =
   process.env.NEXT_PUBLIC_LOGIN_ENDPOINT ?? "/api/v1/jwt/login/";
 const TOKEN_REFRESH_ENDPOINT =
@@ -144,6 +166,14 @@ function buildUrl(path: string) {
   }
 
   return `${API_BASE_URL}${path}`;
+}
+
+function getStorage() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return window.localStorage;
 }
 
 async function parseResponse<T>(response: Response): Promise<T> {
@@ -437,6 +467,33 @@ export async function getCurrentUser(accessToken: string) {
   return parseResponse<UserByEmail>(response);
 }
 
+export async function getCurrentAuthenticatedUser(accessToken: string) {
+  const response = await fetch(buildUrl(CURRENT_USER_ENDPOINT), {
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  return parseResponse<CurrentUserProfile>(response);
+}
+
+export async function createCurrentUserMetadata(
+  formData: FormData,
+  accessToken: string,
+) {
+  const response = await fetch(buildUrl(USER_METADATA_ENDPOINT), {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: formData,
+  });
+
+  return parseResponse<CurrentUserMetadata>(response);
+}
+
 export async function updateCurrentUser(
   formData: FormData,
   accessToken: string,
@@ -451,6 +508,20 @@ export async function updateCurrentUser(
   });
 
   return parseResponse<UserByEmail>(response);
+}
+
+export async function deleteCurrentUser(accessToken: string) {
+  const response = await fetch(buildUrl(CURRENT_USER_ENDPOINT), {
+    method: "DELETE",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    await parseResponse(response);
+  }
 }
 
 export async function patchCurrentUser(
@@ -520,61 +591,75 @@ export async function verifyAccessToken(token: string) {
 }
 
 export function persistAuthSession(tokens: TokenPair) {
-  window.localStorage.setItem("rem-authenticated", "true");
-  window.localStorage.setItem("rem-access-token", tokens.access);
-  window.localStorage.setItem("rem-refresh-token", tokens.refresh);
+  const storage = getStorage();
+  if (!storage) {
+    return;
+  }
+
+  storage.setItem("rem-authenticated", "true");
+  storage.setItem("rem-access-token", tokens.access);
+  storage.setItem("rem-refresh-token", tokens.refresh);
 }
 
 export function persistAuthUser(user: UserByEmail) {
+  const storage = getStorage();
+  if (!storage) {
+    return;
+  }
+
   const intentIsAgent =
-    typeof window !== "undefined" &&
-    window.localStorage.getItem("rem-auth-intent") === "agent";
+    storage.getItem("rem-auth-intent") === "agent";
 
   const patchedUser =
     intentIsAgent && (!user.role || user.role === "Prospective Buyer/Tenant")
       ? ({ ...user, role: "Agent" } as unknown as UserByEmail)
       : user;
 
-  window.localStorage.setItem("rem-authenticated", "true");
-  window.localStorage.setItem("rem-user", JSON.stringify(patchedUser));
+  storage.setItem("rem-authenticated", "true");
+  storage.setItem("rem-user", JSON.stringify(patchedUser));
 }
 
 export function getStoredAccessToken() {
-  return window.localStorage.getItem("rem-access-token") ?? "";
+  return getStorage()?.getItem("rem-access-token") ?? "";
 }
 
 export function getStoredRefreshToken() {
-  return window.localStorage.getItem("rem-refresh-token") ?? "";
+  return getStorage()?.getItem("rem-refresh-token") ?? "";
 }
 
 export function persistAgentOnboardingToken(token: string) {
-  window.localStorage.setItem("rem-agent-onboarding-token", token);
+  getStorage()?.setItem("rem-agent-onboarding-token", token);
 }
 
 export function getStoredAgentOnboardingToken() {
-  return window.localStorage.getItem("rem-agent-onboarding-token") ?? "";
+  return getStorage()?.getItem("rem-agent-onboarding-token") ?? "";
 }
 
 export function clearAgentOnboardingToken() {
-  window.localStorage.removeItem("rem-agent-onboarding-token");
+  getStorage()?.removeItem("rem-agent-onboarding-token");
 }
 
 export function clearAuthSession() {
-  window.localStorage.removeItem("rem-authenticated");
-  window.localStorage.removeItem("rem-access-token");
-  window.localStorage.removeItem("rem-refresh-token");
-  window.localStorage.removeItem("rem-user");
-  window.localStorage.removeItem("rem-agent-onboarding-token");
+  const storage = getStorage();
+  if (!storage) {
+    return;
+  }
+
+  storage.removeItem("rem-authenticated");
+  storage.removeItem("rem-access-token");
+  storage.removeItem("rem-refresh-token");
+  storage.removeItem("rem-user");
+  storage.removeItem("rem-agent-onboarding-token");
 }
 
 export function getPendingActivationEmail() {
-  return window.localStorage.getItem("rem-pending-activation-email") ?? "";
+  return getStorage()?.getItem("rem-pending-activation-email") ?? "";
 }
 
 export function setPendingActivationEmail(email: string) {
-  window.localStorage.setItem("rem-pending-activation-email", email);
+  getStorage()?.setItem("rem-pending-activation-email", email);
 }
 
 export function clearPendingActivationEmail() {
-  window.localStorage.removeItem("rem-pending-activation-email");
+  getStorage()?.removeItem("rem-pending-activation-email");
 }
