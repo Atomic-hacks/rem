@@ -1,8 +1,11 @@
 "use client";
 
-import { getProperties } from "@/services";
-import type { PropertyFilterParams, PropertyListResponse } from "@/services";
 import { PropertyCard } from "@/components/property/PropertyCard";
+import {
+  getProperties,
+  type PropertyFilterParams,
+  type PropertyListResponse,
+} from "@/services";
 import { useEffect, useMemo, useState } from "react";
 import { FiSearch, FiSliders } from "react-icons/fi";
 
@@ -132,7 +135,9 @@ export function PropertyListingPage({ kind }: { kind: ListingKind }) {
             {titleByKind[kind]}
           </h1>
           <p className="mt-2 text-sm text-gray-500">
-            {loading ? "Loading properties..." : `Found ${data?.count ?? 0} properties matching your criteria`}
+            {loading
+              ? "Loading properties..."
+              : `Found ${data?.count ?? 0} properties matching your criteria`}
           </p>
         </div>
 
@@ -192,10 +197,7 @@ export function PropertyListingPage({ kind }: { kind: ListingKind }) {
                     key={item}
                     type="button"
                     onClick={() =>
-                      resetPage(() => {
-                        const nextValue = bedrooms === item ? 0 : item;
-                        setBedrooms(nextValue);
-                      })
+                      resetPage(() => setBedrooms(bedrooms === item ? 0 : item))
                     }
                     className={`flex h-9 w-9 items-center justify-center rounded-lg border text-sm transition ${
                       bedrooms === item
@@ -217,10 +219,7 @@ export function PropertyListingPage({ kind }: { kind: ListingKind }) {
                     key={item}
                     type="button"
                     onClick={() =>
-                      resetPage(() => {
-                        const nextValue = bathrooms === item ? 0 : item;
-                        setBathrooms(nextValue);
-                      })
+                      resetPage(() => setBathrooms(bathrooms === item ? 0 : item))
                     }
                     className={`flex h-9 w-9 items-center justify-center rounded-lg border text-sm transition ${
                       bathrooms === item

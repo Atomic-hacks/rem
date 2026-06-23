@@ -26,16 +26,17 @@ export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [propertiesOpen, setPropertiesOpen] = useState(false);
   const [mobilePropertiesOpen, setMobilePropertiesOpen] = useState(false);
+  const [authenticated, setAuthenticated] = useState(() =>
+    Boolean(getStoredAccessToken()),
+  );
   const pathname = usePathname();
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Reset open menus when the route changes. This is done during render
-  // (React's documented pattern for "adjusting state when a value changes")
-  // rather than in a useEffect, so there's no extra render/commit pass and
-  // no risk of a stale menu flashing open for a frame after navigation.
+  // Reset menu state on route change during render, not in an effect
   const [prevPathname, setPrevPathname] = useState(pathname);
-  if (pathname !== prevPathname) {
+
+  if (prevPathname !== pathname) {
     setPrevPathname(pathname);
     setMenuOpen(false);
     setPropertiesOpen(false);
@@ -58,11 +59,10 @@ export default function Navbar() {
 
   const logout = () => {
     clearAuthSession();
+    setAuthenticated(false);
     setMenuOpen(false);
     router.replace("/home");
   };
-
-  const authenticated = Boolean(getStoredAccessToken());
 
   const isActive = (href: string) =>
     href === "/"

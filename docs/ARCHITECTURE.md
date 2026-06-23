@@ -78,7 +78,8 @@ rem/
 │
 ├── docs/                         # Documentation
 │   ├── frontend-scaffold.md      # Frontend setup guide
-│   └── refactoring-property-details.md
+│   ├── PROPERTY_API_INTEGRATION.md
+│   └── QUICK_START.md
 │
 ├── public/                       # Static assets
 ├── package.json

@@ -21,7 +21,7 @@ const ReadyToListYourProperty = () => {
               selling, and renting across Africa with ease.
             </p>
 
-            <Link href="/list-property">
+            <Link href="/sign-up">
               <button className="mt-6 rounded-xl bg-black px-6 py-3 font-semibold text-[#F59E0B] shadow-md transition duration-300 hover:bg-white/90 hover:scale-105">
                 List Your Property
               </button>

@@ -23,9 +23,21 @@ const footerLinks = {
 };
 
 const socials = [
-  { icon: <FaFacebookF size={14} />, href: "https://facebook.com", label: "Facebook" },
-  { icon: <FaTwitter size={14} />, href: "https://twitter.com", label: "Twitter" },
-  { icon: <FaLinkedinIn size={14} />, href: "https://linkedin.com", label: "LinkedIn" },
+  {
+    icon: <FaFacebookF size={14} />,
+    href: "https://facebook.com",
+    label: "Facebook",
+  },
+  {
+    icon: <FaTwitter size={14} />,
+    href: "https://twitter.com",
+    label: "Twitter",
+  },
+  {
+    icon: <FaLinkedinIn size={14} />,
+    href: "https://linkedin.com",
+    label: "LinkedIn",
+  },
 ];
 
 export default function Footer() {
@@ -41,7 +53,13 @@ export default function Footer() {
             className="flex flex-col gap-3"
           >
             <div className="flex items-center gap-2">
-              <Image src="/logo.png" width={32} height={32} className="w-8 h-8" alt="logo" />
+              <Image
+                src="/logo.png"
+                width={32}
+                height={32}
+                className="w-8 h-8"
+                alt="logo"
+              />
               <span className="font-semibold text-stone-800 text-sm leading-tight">
                 Real Estate Marketplace
               </span>
@@ -58,10 +76,16 @@ export default function Footer() {
               initial={{ opacity: 0, y: 12 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: (i + 1) * 0.08, ease: "easeOut" }}
+              transition={{
+                duration: 0.5,
+                delay: (i + 1) * 0.08,
+                ease: "easeOut",
+              }}
               className="flex flex-col gap-3"
             >
-              <h4 className="text-stone-800 text-sm font-semibold">{heading}</h4>
+              <h4 className="text-stone-800 text-sm font-semibold">
+                {heading}
+              </h4>
               <ul className="flex flex-col gap-2">
                 {links.map((link) => (
                   <li key={link.label}>
@@ -82,7 +106,7 @@ export default function Footer() {
 
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-stone-400 text-xs font-light">
-            © 2024 Real Estate Marketplace Africa. All rights reserved.
+            © 2026 Real Estate Marketplace Africa. All rights reserved.
           </p>
 
           <div className="flex items-center gap-2">
