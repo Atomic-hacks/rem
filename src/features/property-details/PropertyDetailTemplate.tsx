@@ -1,11 +1,13 @@
 "use client";
 
+import { PropertyCard } from "@/components/property/PropertyCard";
 import {
   AgentCard,
   FeaturesList,
   ImageCarousel,
   PropertyStats,
 } from "@/components/ui/property-details";
+import type { ApiProperty } from "@/services";
 import type { ListingAgent } from "@/types";
 import { motion } from "framer-motion";
 import Link from "next/link";
@@ -15,7 +17,7 @@ import { FiArrowLeft, FiHeart, FiMapPin, FiShare2 } from "react-icons/fi";
 export interface PropertyDetailTemplateProps {
   title: string;
   location: string;
-  price: number;
+  price: string | number;
   priceLabel: string;
   images: string[];
   bedrooms: number;
@@ -26,7 +28,9 @@ export interface PropertyDetailTemplateProps {
   agent: ListingAgent;
   backLink: string;
   tag?: string;
+  availabilityLabel?: string;
   backLabel?: string;
+  similarProperties?: ApiProperty[];
 }
 
 export function PropertyDetailTemplate({
@@ -43,36 +47,41 @@ export function PropertyDetailTemplate({
   agent,
   backLink,
   tag,
+  availabilityLabel,
   backLabel = "Back to listings",
+  similarProperties = [],
 }: PropertyDetailTemplateProps) {
   const [liked, setLiked] = useState(false);
 
-  const formatPrice = (amount: number) => `₦${amount.toLocaleString()}`;
+  const formatPrice = (amount: string | number) =>
+    typeof amount === "number" ? `₦${amount.toLocaleString()}` : amount;
 
   return (
-    <div className="min-h-screen bg-[#FAF7F2] px-4 sm:px-6 lg:px-10 py-6 font-sans">
-      <div className="max-w-5xl mx-auto flex flex-col gap-5">
-        {/* Back link */}
+    <div className="min-h-screen bg-[#FAF7F2] px-4 py-6 font-sans sm:px-6 lg:px-10">
+      <div className="mx-auto flex max-w-5xl flex-col gap-5">
         <Link
           href={backLink}
-          className="flex items-center gap-1.5 text-amber-500 hover:text-amber-600 text-xs font-medium transition-colors w-fit"
+          className="flex w-fit items-center gap-1.5 text-xs font-medium text-amber-500 transition-colors hover:text-amber-600"
         >
           <FiArrowLeft size={13} />
           {backLabel}
         </Link>
 
-        {/* Image carousel */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
         >
-          <ImageCarousel images={images} title={title} />
+          {images.length > 0 ? (
+            <ImageCarousel images={images} title={title} />
+          ) : (
+            <div className="flex h-72 items-center justify-center rounded-2xl bg-stone-100 text-sm text-stone-500 sm:h-96">
+              No gallery images available
+            </div>
+          )}
         </motion.div>
 
-        {/* Two-column layout */}
-        <div className="flex flex-col lg:flex-row gap-6 items-start">
-          {/* LEFT column: property details */}
+        <div className="flex flex-col items-start gap-6 lg:flex-row">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -81,22 +90,28 @@ export function PropertyDetailTemplate({
               duration: 0.55,
               ease: [0.22, 1, 0.36, 1],
             }}
-            className="flex-1 flex flex-col gap-5 min-w-0"
+            className="flex min-w-0 flex-1 flex-col gap-5"
           >
-            {/* Tag row + like/share buttons */}
-            <div className="flex items-center justify-between">
-              {tag && (
-                <span className="bg-red-400/50 text-red-500 text-sm font-semibold px-3 py-1 rounded-xl tracking-wide">
-                  {tag}
-                </span>
-              )}
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                {tag && (
+                  <span className="rounded-xl bg-red-400/50 px-3 py-1 text-sm font-semibold tracking-wide text-red-500">
+                    {tag}
+                  </span>
+                )}
+                {availabilityLabel && (
+                  <span className="rounded-xl bg-emerald-100 px-3 py-1 text-sm font-semibold tracking-wide text-emerald-700">
+                    {availabilityLabel}
+                  </span>
+                )}
+              </div>
               <div
-                className={`flex items-center gap-5 ${!tag ? "ml-auto" : ""}`}
+                className={`flex items-center gap-5 ${!tag && !availabilityLabel ? "ml-auto" : ""}`}
               >
                 <button
                   type="button"
                   onClick={() => setLiked((current) => !current)}
-                  className="flex items-center justify-center cursor-pointer"
+                  className="flex cursor-pointer items-center justify-center"
                   aria-label="Save property"
                 >
                   <FiHeart
@@ -108,7 +123,7 @@ export function PropertyDetailTemplate({
                 </button>
                 <button
                   type="button"
-                  className="flex items-center justify-center cursor-pointer"
+                  className="flex cursor-pointer items-center justify-center"
                   aria-label="Share property"
                 >
                   <FiShare2 size={25} className="text-stone-600" />
@@ -116,16 +131,15 @@ export function PropertyDetailTemplate({
               </div>
             </div>
 
-            {/* Title, location pin, price */}
             <div className="flex flex-col gap-1.5">
-              <h1 className="text-xl md:text-3xl font-bold text-stone-800 leading-snug tracking-tight">
+              <h1 className="text-xl font-bold leading-snug tracking-tight text-stone-800 md:text-3xl">
                 {title}
               </h1>
-              <p className="flex items-center gap-1.5 text-stone-400 text-sm font-light">
+              <p className="flex items-center gap-1.5 text-sm font-light text-stone-400">
                 <FiMapPin size={12} className="shrink-0 text-amber-400" />
                 {location}
               </p>
-              <p className="text-amber-500 font-bold text-xl md:text-3xl mt-1">
+              <p className="mt-1 text-xl font-bold text-amber-500 md:text-3xl">
                 {formatPrice(price)}
                 {priceLabel !== "Price" && (
                   <span className="text-base font-medium text-stone-400">
@@ -135,31 +149,49 @@ export function PropertyDetailTemplate({
               </p>
             </div>
 
-            {/* Property stats */}
             <PropertyStats
               bedrooms={bedrooms}
               bathrooms={bathrooms}
               areaSqft={areaSqft}
             />
 
-            {/* About this property */}
-            <div className="flex flex-col gap-2 my-10">
-              <h2 className="font-semibold text-3xl">About this property</h2>
-              <p className="text-stone-800 font-light leading-relaxed">
+            <div className="my-10 flex flex-col gap-2">
+              <h2 className="text-3xl font-semibold">About this property</h2>
+              <p className="font-light leading-relaxed text-stone-800">
                 {description}
               </p>
             </div>
 
-            {/* Features & Amenities */}
-            <FeaturesList features={features} />
+            {features.length > 0 && <FeaturesList features={features} />}
           </motion.div>
 
-          {/* RIGHT column: agent sidebar */}
-          <div className="w-full lg:w-72 shrink-0">
+          <div className="w-full shrink-0 lg:w-72">
             <AgentCard agent={agent} />
           </div>
         </div>
       </div>
+
+      {similarProperties.length > 0 && (
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            delay: 0.2,
+            duration: 0.55,
+            ease: [0.22, 1, 0.36, 1],
+          }}
+          className="mx-auto mt-8 flex max-w-5xl flex-col gap-4 px-4 sm:px-6 lg:px-10"
+        >
+          <h2 className="text-3xl font-semibold text-stone-800">
+            Similar Properties
+          </h2>
+          <div className="grid gap-6 md:grid-cols-2">
+            {similarProperties.map((similarProperty) => (
+              <PropertyCard key={similarProperty.id} property={similarProperty} />
+            ))}
+          </div>
+        </motion.section>
+      )}
     </div>
   );
 }

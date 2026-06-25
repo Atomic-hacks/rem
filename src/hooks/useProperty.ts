@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   getHomePageData,
   getProperties,
@@ -12,7 +12,6 @@ import {
   type PropertyFilterParams,
 } from "@/services";
 
-// Re-export types for use in components
 export type {
   HomePageData,
   ApiProperty as Property,
@@ -26,172 +25,75 @@ interface UseAsyncState<T> {
   error: Error | null;
 }
 
-/**
- * Hook to fetch home page aggregated data
- */
+function toError(error: unknown) {
+  return error instanceof Error ? error : new Error("Unknown error");
+}
+
+function useAsyncResource<T>(load: () => Promise<T>, enabled = true) {
+  const [state, setState] = useState<UseAsyncState<T>>({
+    data: null,
+    loading: enabled,
+    error: null,
+  });
+
+  useEffect(() => {
+    if (!enabled) {
+      setState({ data: null, loading: false, error: null });
+      return;
+    }
+
+    let mounted = true;
+    setState((current) => ({ ...current, loading: true, error: null }));
+
+    load()
+      .then((data) => {
+        if (mounted) {
+          setState({ data, loading: false, error: null });
+        }
+      })
+      .catch((error: unknown) => {
+        if (mounted) {
+          setState({ data: null, loading: false, error: toError(error) });
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [enabled, load]);
+
+  return state;
+}
+
 export function useHomePageData() {
-  const [state, setState] = useState<UseAsyncState<HomePageData>>({
-    data: null,
-    loading: true,
-    error: null,
-  });
-
-  useEffect(() => {
-    let mounted = true;
-
-    const fetchData = async () => {
-      try {
-        const data = await getHomePageData();
-        if (mounted) {
-          setState({ data, loading: false, error: null });
-        }
-      } catch (error) {
-        if (mounted) {
-          setState({
-            data: null,
-            loading: false,
-            error: error instanceof Error ? error : new Error("Unknown error"),
-          });
-        }
-      }
-    };
-
-    fetchData();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  return state;
+  return useAsyncResource(getHomePageData);
 }
 
-/**
- * Hook to fetch properties with filters
- */
 export function useProperties(filters?: PropertyFilterParams) {
-  const [state, setState] = useState<UseAsyncState<PropertyListResponse>>({
-    data: null,
-    loading: true,
-    error: null,
-  });
-
-  useEffect(() => {
-    let mounted = true;
-
-    const fetchData = async () => {
-      try {
-        const data = await getProperties(filters);
-        if (mounted) {
-          setState({ data, loading: false, error: null });
-        }
-      } catch (error) {
-        if (mounted) {
-          setState({
-            data: null,
-            loading: false,
-            error: error instanceof Error ? error : new Error("Unknown error"),
-          });
-        }
-      }
-    };
-
-    fetchData();
-
-    return () => {
-      mounted = false;
-    };
-  }, [filters]);
-
-  return state;
+  const load = useCallback(() => getProperties(filters), [filters]);
+  return useAsyncResource(load);
 }
 
-/**
- * Hook to fetch a single property by slug
- */
 export function usePropertyDetail(slug: string | null) {
-  const [state, setState] = useState<UseAsyncState<ApiProperty>>({
-    data: null,
-    loading: !!slug,
-    error: null,
-  });
-
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!slug) {
-      setState({ data: null, loading: false, error: null });
-      return;
+      return Promise.reject(new Error("Missing property slug"));
     }
 
-    let mounted = true;
-
-    const fetchData = async () => {
-      try {
-        const data = await getPropertyBySlug(slug);
-        if (mounted) {
-          setState({ data, loading: false, error: null });
-        }
-      } catch (error) {
-        if (mounted) {
-          setState({
-            data: null,
-            loading: false,
-            error: error instanceof Error ? error : new Error("Unknown error"),
-          });
-        }
-      }
-    };
-
-    fetchData();
-
-    return () => {
-      mounted = false;
-    };
+    return getPropertyBySlug(slug);
   }, [slug]);
 
-  return state;
+  return useAsyncResource(load, !!slug);
 }
 
-/**
- * Hook to fetch similar properties
- */
 export function useSimilarProperties(slug: string | null) {
-  const [state, setState] = useState<UseAsyncState<ApiProperty[]>>({
-    data: null,
-    loading: !!slug,
-    error: null,
-  });
-
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!slug) {
-      setState({ data: null, loading: false, error: null });
-      return;
+      return Promise.reject(new Error("Missing property slug"));
     }
 
-    let mounted = true;
-
-    const fetchData = async () => {
-      try {
-        const data = await getSimilarProperties(slug);
-        if (mounted) {
-          setState({ data, loading: false, error: null });
-        }
-      } catch (error) {
-        if (mounted) {
-          setState({
-            data: null,
-            loading: false,
-            error: error instanceof Error ? error : new Error("Unknown error"),
-          });
-        }
-      }
-    };
-
-    fetchData();
-
-    return () => {
-      mounted = false;
-    };
+    return getSimilarProperties(slug);
   }, [slug]);
 
-  return state;
+  return useAsyncResource(load, !!slug);
 }

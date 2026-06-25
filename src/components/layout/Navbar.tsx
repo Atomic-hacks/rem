@@ -1,29 +1,60 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { FiLogOut, FiMenu, FiUser, FiX } from "react-icons/fi";
+import { useEffect, useRef, useState } from "react";
+import { FiChevronDown, FiLogOut, FiMenu, FiUser, FiX } from "react-icons/fi";
 import { clearAuthSession, getStoredAccessToken } from "@/services";
 
-const navLinks = [
-  { label: "Home", href: "/" },
+const navLinks = [{ label: "Home", href: "/" }];
+
+const propertyLinks = [
   { label: "For Sale", href: "/userSale" },
   { label: "For Rent", href: "/userRent" },
   { label: "Short-Let", href: "/shortlet" },
+  { label: "Hotel", href: "/hotel" },
+];
+
+const trailingLinks = [
   { label: "Agents", href: "/agents" },
+  { label: "About", href: "/about" },
 ];
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [authenticated, setAuthenticated] = useState(false);
+  const [propertiesOpen, setPropertiesOpen] = useState(false);
+  const [mobilePropertiesOpen, setMobilePropertiesOpen] = useState(false);
+  const [authenticated, setAuthenticated] = useState(() =>
+    Boolean(getStoredAccessToken()),
+  );
   const pathname = usePathname();
   const router = useRouter();
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // Reset menu state on route change during render, not in an effect
+  const [prevPathname, setPrevPathname] = useState(pathname);
+
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname);
+    setMenuOpen(false);
+    setPropertiesOpen(false);
+    setMobilePropertiesOpen(false);
+  }
+
+  // Close the desktop dropdown when clicking outside of it
   useEffect(() => {
-    setAuthenticated(Boolean(getStoredAccessToken()));
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setPropertiesOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const logout = () => {
@@ -34,7 +65,11 @@ export default function Navbar() {
   };
 
   const isActive = (href: string) =>
-    href === "/" ? pathname === "/" || pathname === "/home" : pathname.startsWith(href);
+    href === "/"
+      ? pathname === "/" || pathname === "/home"
+      : pathname.startsWith(href);
+
+  const isPropertiesActive = propertyLinks.some((link) => isActive(link.href));
 
   return (
     <motion.nav
@@ -45,7 +80,13 @@ export default function Navbar() {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-6">
         <Link href="/" className="flex items-center gap-2 shrink-0">
-          <Image src="/logo.png" width={32} height={32} className="w-8 h-8" alt="logo" />
+          <Image
+            src="/logo.png"
+            width={32}
+            height={32}
+            className="w-8 h-8"
+            alt="logo"
+          />
           <span className="font-semibold text-stone-800 text-[15px] tracking-tight whitespace-nowrap">
             Real Estate Marketplace
           </span>
@@ -57,7 +98,73 @@ export default function Navbar() {
               key={link.label}
               href={link.href}
               className={`relative px-4 py-1.5 text-sm font-medium transition-colors duration-150 cursor-pointer rounded-md ${
-                isActive(link.href) ? "text-amber-500" : "text-stone-500 hover:text-stone-800"
+                isActive(link.href)
+                  ? "text-amber-500"
+                  : "text-stone-500 hover:text-stone-800"
+              }`}
+            >
+              {link.label}
+            </Link>
+          ))}
+
+          {/* Properties dropdown */}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              type="button"
+              onClick={() => setPropertiesOpen((open) => !open)}
+              aria-haspopup="true"
+              aria-expanded={propertiesOpen}
+              className={`relative inline-flex items-center gap-1 px-4 py-1.5 text-sm font-medium transition-colors duration-150 cursor-pointer rounded-md ${
+                isPropertiesActive || propertiesOpen
+                  ? "text-amber-500"
+                  : "text-stone-500 hover:text-stone-800"
+              }`}
+            >
+              Properties
+              <FiChevronDown
+                size={14}
+                className={`transition-transform duration-200 ${
+                  propertiesOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            <AnimatePresence>
+              {propertiesOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.18, ease: "easeOut" }}
+                  className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-white border border-stone-100 rounded-xl shadow-lg py-2 z-50"
+                >
+                  {propertyLinks.map((link) => (
+                    <Link
+                      key={link.label}
+                      href={link.href}
+                      onClick={() => setPropertiesOpen(false)}
+                      className={`block px-4 py-2 text-sm font-medium transition-colors duration-150 cursor-pointer ${
+                        isActive(link.href)
+                          ? "text-amber-500 bg-amber-50"
+                          : "text-stone-600 hover:bg-stone-50 hover:text-stone-900"
+                      }`}
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {trailingLinks.map((link) => (
+            <Link
+              key={link.label}
+              href={link.href}
+              className={`relative px-4 py-1.5 text-sm font-medium transition-colors duration-150 cursor-pointer rounded-md ${
+                isActive(link.href)
+                  ? "text-amber-500"
+                  : "text-stone-500 hover:text-stone-800"
               }`}
             >
               {link.label}
@@ -129,12 +236,77 @@ export default function Navbar() {
               href={link.href}
               onClick={() => setMenuOpen(false)}
               className={`text-left px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150 cursor-pointer ${
-                isActive(link.href) ? "text-amber-500 bg-amber-50" : "text-stone-600 hover:bg-stone-50"
+                isActive(link.href)
+                  ? "text-amber-500 bg-amber-50"
+                  : "text-stone-600 hover:bg-stone-50"
               }`}
             >
               {link.label}
             </Link>
           ))}
+
+          {/* Properties accordion */}
+          <button
+            type="button"
+            onClick={() => setMobilePropertiesOpen((open) => !open)}
+            aria-expanded={mobilePropertiesOpen}
+            className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150 cursor-pointer ${
+              isPropertiesActive
+                ? "text-amber-500 bg-amber-50"
+                : "text-stone-600 hover:bg-stone-50"
+            }`}
+          >
+            Properties
+            <FiChevronDown
+              size={16}
+              className={`transition-transform duration-200 ${
+                mobilePropertiesOpen ? "rotate-180" : ""
+              }`}
+            />
+          </button>
+
+          <AnimatePresence initial={false}>
+            {mobilePropertiesOpen && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="flex flex-col gap-1 pl-3 overflow-hidden"
+              >
+                {propertyLinks.map((link) => (
+                  <Link
+                    key={link.label}
+                    href={link.href}
+                    onClick={() => setMenuOpen(false)}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-150 cursor-pointer ${
+                      isActive(link.href)
+                        ? "text-amber-500 bg-amber-50"
+                        : "text-stone-500 hover:bg-stone-50"
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {trailingLinks.map((link) => (
+            <Link
+              key={link.label}
+              href={link.href}
+              onClick={() => setMenuOpen(false)}
+              className={`text-left px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150 cursor-pointer ${
+                isActive(link.href)
+                  ? "text-amber-500 bg-amber-50"
+                  : "text-stone-600 hover:bg-stone-50"
+              }`}
+            >
+              {link.label}
+            </Link>
+          ))}
+
           {authenticated ? (
             <div className="flex gap-3 mt-2 pt-3 border-t border-stone-100">
               <Link

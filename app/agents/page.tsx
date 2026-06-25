@@ -52,7 +52,11 @@ function agentsFromProperties(properties: ApiProperty[]) {
       return;
     }
 
-    const fullName = property.agent.full_name || "Property Agent";
+    const fullName =
+      property.agent.full_name ||
+      property.agent.company_name ||
+      property.agent.agent_type ||
+      "";
     const type = property.agent.company_name ? "AGENCY" : "AGENT";
     const location = property.location || "Location unavailable";
 
@@ -196,14 +200,14 @@ const ProfileModal = ({
   onClose: () => void;
 }) => (
   <div
-    className="fixed inset-0 z-[70] flex items-center justify-center bg-stone-300/70 px-1 py-4"
+    className="fixed inset-0 z-70 flex items-center justify-center bg-stone-300/70 px-1 py-4"
     role="dialog"
     aria-modal="true"
     aria-labelledby="agent-profile-title"
   >
-    <div className="w-full max-w-[374px] overflow-hidden rounded-lg bg-[#fffaf4] shadow-sm">
-      <div className="relative flex h-[73px] items-center gap-4 bg-white px-[15px]">
-        <div className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full bg-[#ffc20f] text-[16px] font-semibold text-stone-900">
+    <div className="w-full max-w-93.5 overflow-hidden rounded-lg bg-[#fffaf4] shadow-sm">
+      <div className="relative flex h-18.25 items-center gap-4 bg-white px-3.75">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#ffc20f] text-[16px] font-semibold text-stone-900">
           {agent.initials}
         </div>
         <div className="min-w-0 flex-1 pt-1">
